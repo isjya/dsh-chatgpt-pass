@@ -1,0 +1,33 @@
+name: Release package
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm check:repository
+      - run: pnpm check
+      - name: Check release tag
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+        run: node --input-type=module -e "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync('package.json')); if(process.env.RELEASE_REF!=='v'+p.version) throw new Error('Tag does not match package version');"
+      - run: pnpm pack:release
+      - name: Create draft with prebuilt assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REF: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_REF" artifacts/*.tgz artifacts/*.sha256 artifacts/files.json --draft --verify-tag --title "$RELEASE_REF" --notes "预构建的 DeepSeek Harness 插件安装包。请下载 .tgz 并核对 SHA256；兼容性及登录说明见 README。"

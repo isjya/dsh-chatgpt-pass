@@ -1,0 +1,51 @@
+# Dependencies and generated output
+node_modules/
+/lib/
+/artifacts/
+/coverage/
+*.tsbuildinfo
+
+# Local workspaces, validation data and caches
+/.local/
+/.validation/
+/.cache/
+/.pnpm-store/
+/.dsh/
+/.codegraph/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+.credentials*
+credentials*.json
+credentials*.yaml
+auth.json
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Logs, reports, archives and temporary files
+*.log
+*.tgz
+*.tar
+*.tar.gz
+*.zip
+*.tmp
+*.temp
+*.bak
+*.swp
+test-results/
+playwright-report/
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Keep one dependency lockfile
+/package-lock.json
+/yarn.lock

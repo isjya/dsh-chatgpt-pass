@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-chatgpt-provider
+      name: dsh-chatgpt-provider

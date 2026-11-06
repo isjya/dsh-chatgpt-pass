@@ -1,0 +1,101 @@
+{
+  "name": "dsh-chatgpt-provider",
+  "version": "0.2.13",
+  "description": "ChatGPT subscription models and account settings for DeepSeek Harness",
+  "author": "isjya",
+  "repository": { "type": "git", "url": "git+https://github.com/isjya/dsh-chatgpt-provider.git" },
+  "homepage": "https://github.com/isjya/dsh-chatgpt-provider#readme",
+  "bugs": { "url": "https://github.com/isjya/dsh-chatgpt-provider/issues" },
+  "keywords": ["dsh-plugin", "deepseek-harness", "chatgpt", "subscription", "llm"],
+  "icon": "icon.svg",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": "./lib/client.js",
+    "./icon": "./icon.svg",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "icon.svg",
+    "locale",
+    "cordis.patch.yml",
+    "README.md",
+    "docs",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=24.9",
+    "dsh": "0.2.1-rc.5 || 0.2.2-rc.1"
+  },
+  "packageManager": "pnpm@11.28.5",
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-api-remotes"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "pnpm typecheck && pnpm build && pnpm test",
+    "check:repository": "node scripts/check-repository.mjs",
+    "verify:ui": "node scripts/verify/settings-ui-check.mjs",
+    "pack:release": "node scripts/package.mjs"
+  },
+  "dependencies": {
+    "jose": "6.2.15",
+    "openai": "7.51.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.1.0",
+    "@deepseek-ai/dsh-api-remotes": "0.2.1-rc.5 || 0.2.2-rc.1",
+    "@deepseek-ai/dsh-authorization": "0.2.1-rc.5 || 0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.5 || 0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-settings": "0.2.1-rc.5 || 0.2.2-rc.1",
+    "@deepseek-ai/dsh-credentials": "0.2.1-rc.5 || 0.2.2-rc.1",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.5 || 0.2.2-rc.1",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.1-rc.5 || 0.2.2-rc.1",
+    "react": "^18.3.1",
+    "@deepseek-ai/schemastery": "3.18.5 || 3.19.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.1.0",
+    "@deepseek-ai/dsh-agent-loop-testkit": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-gateway": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-api-remotes": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-authorization": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-client-ui-settings": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-credentials": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-credentials-local": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-tool-testkit": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.1",
+    "@deepseek-ai/schemastery": "3.19.0",
+    "@types/node": "24.10.0",
+    "@types/react": "18.3.28",
+    "esbuild": "0.27.0",
+    "pnpm": "11.28.5",
+    "react": "18.3.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

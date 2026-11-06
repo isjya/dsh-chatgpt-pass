@@ -1,0 +1,9 @@
+packages:
+  - .
+
+verifyDepsBeforeRun: false
+
+# These dependencies ship prebuilt binaries used by the checks.
+allowBuilds:
+  esbuild: false
+  koffi: false

@@ -1,0 +1,36 @@
+# 架构与协议边界
+
+## Harness bundle
+
+`package.json` 的 `dsh.bundle.patch` 指向 `cordis.patch.yml`。Patch 通过包名挂载服务端入口；`dsh.client` 与 `./client` 导出提供设置页。运行时与宿主共享的包同时声明为 peerDependency 和开发依赖，独立第三方库位于 dependencies。
+
+服务端注册 `chatgpt-subscription` provider、授权 flow 与 `chatgptProvider` Remote 服务。客户端先挂载 Remote 描述符，再通过注入作用域取得 API。前端只接收连接状态、脱敏账号、模型目录及精简用量，不接收凭据。
+
+## 两条连接路径
+
+| 路径 | 授权 | 模型与推理 |
+| --- | --- | --- |
+| SIWC | 本插件的动态客户端注册、PKCE / OIDC、共享权限 | 公开 Models / Responses API |
+| Codex 兼容 | 本插件自己的 Codex OAuth，实验性 | Codex 模型目录与 Responses backend-api |
+
+两个路径不混用客户端、凭据或模型目录。一次只有一个活动连接。官方路径没有 API key 备用计费，也不会自动切换到 Codex。插件不读取其他客户端的缓存。
+
+## 账号与凭据
+
+`Store` 使用宿主 credentials 服务原子更新带 schemaVersion 的记录。状态、授权尝试、身份与凭据代次一起验证，以处理退出、切换账号和刷新竞争。未知记录版本不被覆盖；令牌不进入配置、前端、日志或安装包。
+
+手动验证使用独立 DSH_HOME。profile 只隔离配置，不能证明凭据隔离。
+
+## 推理与回放
+
+适配器按账号和凭据代次缓存模型目录。请求通过当前模型声明的能力构建。工具保留命名空间及 call_id；流只有在收到 `response.completed` 后才报告成功。失败、断流、取消与 incomplete 分开处理，模型请求不自动重试。
+
+回放绑定注册身份、模型、assistant phase 与 opaque reasoning 状态。不兼容身份或模型不会收到旧加密状态；被裁剪的内容不会自动恢复。
+
+## 用量
+
+Codex 用量接口映射为当前限额窗口、使用比例和重置时间。客户端展示剩余比例，数据缺失时不估算，更新失败时保留数据时间。模型可用状态与余额不能代替按日期／模型统计的历史 Token 明细。
+
+## 已验证范围
+
+自动化测试覆盖 OAuth、OIDC、loopback、刷新竞争、协议流、工具调用、回放、取消、脱敏及公开宿主服务。Business/Codex 路径另有真实文本和工具回合验证；Plus/Pro 真实推理、完整跨进程重登和非目标宿主版本行为尚未验收。手动结果不扩大 `engines.dsh` 声明。
