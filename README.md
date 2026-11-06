@@ -8,7 +8,7 @@
 
 在 [Releases](https://github.com/isjya/dsh-chatgpt-provider/releases) 下载 `dsh-chatgpt-provider-<版本>.tgz` 和对应 `.sha256` 文件，然后在 Harness 的插件管理器中添加本地安装包并启用。安装包已经构建，用户无需单独安装 Node.js、下载源码或运行构建脚本。
 
-当前安装包：[v0.2.13](https://github.com/isjya/dsh-chatgpt-provider/releases/download/v0.2.13/dsh-chatgpt-provider-0.2.13.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。
+当前安装包：[v0.2.14](https://github.com/isjya/dsh-chatgpt-provider/releases/download/v0.2.14/dsh-chatgpt-provider-0.2.14.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。
 
 使用 CLI 时，将命令中的文件名和 profile 替换为实际值：
 

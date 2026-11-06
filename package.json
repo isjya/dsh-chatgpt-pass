@@ -1,6 +1,6 @@
 {
   "name": "dsh-chatgpt-provider",
-  "version": "0.2.13",
+  "version": "0.2.14",
   "description": "ChatGPT subscription models and account settings for DeepSeek Harness",
   "author": "isjya",
   "repository": { "type": "git", "url": "git+https://github.com/isjya/dsh-chatgpt-provider.git" },
@@ -87,6 +87,7 @@
     "@deepseek-ai/dsh-credentials": "0.2.2-rc.1",
     "@deepseek-ai/dsh-credentials-local": "0.2.2-rc.1",
     "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-session": "0.2.2-rc.1",
     "@deepseek-ai/dsh-tool-testkit": "0.2.2-rc.1",
     "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.1",
     "@deepseek-ai/schemastery": "3.19.0",

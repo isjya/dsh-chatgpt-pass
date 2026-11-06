@@ -45,6 +45,9 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: 0.2.2-rc.1
         version: 0.2.2-rc.1(@deepseek-ai/cordis@4.1.0)
+      '@deepseek-ai/dsh-session':
+        specifier: 0.2.2-rc.1
+        version: 0.2.2-rc.1(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-scope@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))
       '@deepseek-ai/dsh-tool-testkit':
         specifier: 0.2.2-rc.1
         version: 0.2.2-rc.1(@deepseek-ai/cordis@4.1.0)(@deepseek-ai/dsh-llm@0.2.2-rc.1(@deepseek-ai/cordis@4.1.0))(@deepseek-ai/dsh-tools@0.2.2-rc.1(a13a0f05e8644f33708fe2540ec79e5a))
