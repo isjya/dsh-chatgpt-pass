@@ -28,6 +28,7 @@
     "locale",
     "cordis.patch.yml",
     "README.md",
+    "README.zh-CN.md",
     "docs",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md"

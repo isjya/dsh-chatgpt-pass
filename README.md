@@ -1,47 +1,55 @@
-# ChatGPT 订阅 · DeepSeek Harness 插件
+<p align="center">
+  <img src="icon.svg" width="80" height="80" alt="ChatGPT Subscription plugin icon">
+</p>
 
-让 DeepSeek Harness 使用已授权的 ChatGPT 订阅模型。插件提供账号连接、模型目录、流式文本、本地函数工具，以及可用时的订阅剩余额度。
+<h1 align="center">ChatGPT Subscription for DeepSeek Harness</h1>
 
-这是独立维护的第三方插件，并非 OpenAI 或 DeepSeek 官方插件。当前版本支持 Harness **0.2.1-rc.5** 与 **0.2.2-rc.1**，其他版本尚未验证。
+<p align="center">
+  <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-## 安装
+Use authorized ChatGPT subscription models in DeepSeek Harness. This plugin provides account connections, a model catalog, streaming text, local function tools, and remaining subscription quota when available.
 
-在 [Releases](https://github.com/isjya/dsh-chatgpt-provider/releases) 下载 `dsh-chatgpt-provider-<版本>.tgz` 和对应 `.sha256` 文件，然后在 Harness 的插件管理器中添加本地安装包并启用。安装包已经构建，用户无需单独安装 Node.js、下载源码或运行构建脚本。
+This is an independently maintained third-party plugin, not an official OpenAI or DeepSeek plugin. Validated Harness versions are **0.2.1-rc.5** and **0.2.2-rc.1**. Other versions have not been verified.
 
-当前安装包：[v0.2.14](https://github.com/isjya/dsh-chatgpt-provider/releases/download/v0.2.14/dsh-chatgpt-provider-0.2.14.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。
+## Installation
 
-使用 CLI 时，将命令中的文件名和 profile 替换为实际值：
+Download `dsh-chatgpt-provider-<version>.tgz` and its `.sha256` file from [Releases](https://github.com/isjya/dsh-chatgpt-provider/releases). Add the local package in the Harness plugin manager and enable it. Release packages are prebuilt; users do not need to install Node.js separately, clone the source, or run build scripts.
+
+Current package: [v0.2.14](https://github.com/isjya/dsh-chatgpt-provider/releases/download/v0.2.14/dsh-chatgpt-provider-0.2.14.tgz). If your plugin manager accepts download links, you can paste this `.tgz` URL directly.
+
+For CLI installation, replace the profile and filename with your actual values:
 
 ```sh
-dsh plugin --profile <profile> add ./dsh-chatgpt-provider-<版本>.tgz
+dsh plugin --profile <profile> add ./dsh-chatgpt-provider-<version>.tgz
 ```
 
-完整安装、升级、卸载和兼容性说明见 [安装指南](docs/INSTALL.md)。
+See the [installation guide (Chinese)](docs/INSTALL.md) for installation, upgrades, removal, and compatibility details.
 
-## 界面示例
+## Preview
 
-![ChatGPT 订阅设置页](docs/assets/subscription-dark.png)
+![ChatGPT subscription settings](docs/assets/subscription-dark.png)
 
-图中账号与用量为演示数据。
+The account and quota shown above are demonstration data. The settings page currently uses Chinese labels; their English meanings are provided below.
 
-## 登录与使用
+## Sign in and use models
 
-打开 **设置 → ChatGPT 订阅**，选择适合账号的连接方式：
+Open **Settings → ChatGPT 订阅 (ChatGPT Subscription)** and choose a connection:
 
-| 入口 | 推荐账号 | 连接方式 |
+| Entry | Recommended accounts | Connection |
 | --- | --- | --- |
-| ChatGPT 登录 | Plus / Pro | 官方 SIWC 授权流程 |
-| Business 登录 | Business / Team | Codex 兼容路径，实验性 |
+| ChatGPT 登录 (ChatGPT login) | Plus / Pro | Official Sign in with ChatGPT (SIWC) flow |
+| Business 登录 (Business login) | Business / Team | Experimental Codex compatibility route |
 
-在官方浏览器授权页完成登录后，回到 Harness，在聊天模型选择器中选择实际返回的模型。已连接时，可展开「切换连接方式」重新登录，或展开「可用模型」查看和刷新目录。
+Complete authorization on the official browser page, return to Harness, and choose an available model in the chat model picker. Once connected, expand **切换连接方式 (Switch connection method)** to sign in again, or **可用模型 (Available models)** to view and refresh the catalog.
 
-Codex 连接可显示 5 小时与每周剩余额度及重置倒计时。官方连接没有此数据时显示空状态，不生成估算用量。当前不提供账号级历史 Token 分析。
+Codex connections can show the remaining quota and reset countdown for five-hour and weekly windows. When the official connection does not provide quota data, the page shows an empty state rather than estimating usage. Account-wide historical token analytics are not currently available.
 
-**Business 兼容路径不属于 OpenAI 文档支持的第三方接入方式。** 它使用 Codex 第一方 OAuth 客户端，可能受工作区策略、服务条款及接口变动影响。只使用你获准使用的账号与工作区。账号资格、模型和实际限额以授权结果为准。
+**The Business compatibility route is not a third-party integration supported by OpenAI's documentation.** It uses the first-party Codex OAuth client and may be affected by workspace policies, terms of service, or interface changes. Use only accounts and workspaces you are authorized to access. Eligibility, models, and actual limits depend on the authorization result.
 
-## 开发
+## Development
 
-需要 Node.js **≥24.9** 和 pnpm **11.28.5**：
+Requires Node.js **≥24.9** and pnpm **11.28.5**:
 
 ```sh
 pnpm install --frozen-lockfile --ignore-scripts
@@ -50,21 +58,23 @@ pnpm check:repository
 pnpm pack:release
 ```
 
-构建与打包结果写入本地 `lib/` 和 `artifacts/`。仓库只保存源码、测试和维护文档；用户通过 Releases 获取构建产物。
+Build output and release packages are written to local `lib/` and `artifacts/` directories. The repository contains source, tests, and maintained documentation; prebuilt packages are distributed through Releases.
 
-- [开发与验证](docs/DEVELOPMENT.md)
-- [架构与协议边界](docs/ARCHITECTURE.md)
-- [发布流程](docs/RELEASING.md)
-- [第三方许可](THIRD_PARTY_NOTICES.md)
+Further documentation:
 
-## 限制与凭据
+- [Development and verification (Chinese)](docs/DEVELOPMENT.md)
+- [Architecture and protocol boundaries (Chinese)](docs/ARCHITECTURE.md)
+- [Release process (Chinese)](docs/RELEASING.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
 
-- 当前声明文本与普通本地函数工具；未承诺完整多模态支持。
-- Plus / Pro 的真实账号调用尚未验证；Business 兼容路径已完成真实文本和工具回合验证。自动化测试不代表真实账号资格。
-- 一次只保持一条活动连接。切换入口会重新登录并替换当前连接。
-- 凭据由 Harness 的 credentials 服务保存，不进入插件配置、浏览器状态或分发包。插件不会读取其他应用的登录缓存，也不会切换到 API key 计费。
-- 退出登录后，可在 [ChatGPT 用量与权限设置](https://chatgpt.com/settings/usage) 管理远端授权。
+## Limitations and credentials
 
-## 许可证
+- Currently supports text and ordinary local function tools; full multimodal support is not guaranteed.
+- Real Plus / Pro inference has not been verified. The Business compatibility route has been verified with real text and tool rounds. Automated tests do not establish account eligibility.
+- Only one connection is active at a time. Switching methods requires signing in again and replaces the current connection.
+- Credentials are stored by the Harness credentials service, not in plugin configuration, browser state, or distribution packages. The plugin does not read other applications' login caches or fall back to API-key billing.
+- After signing out locally, you can manage remote authorization in [ChatGPT usage and permissions settings](https://chatgpt.com/settings/usage).
 
-[MIT](LICENSE)。项目可通过 GitHub 的 `dsh-plugin` 主题发现。
+## License
+
+[MIT](LICENSE). Find the project through GitHub's `dsh-plugin` topic.
