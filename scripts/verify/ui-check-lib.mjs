@@ -6,12 +6,21 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { createServer } from 'node:net';
 
 const edge = process.env.DSH_BROWSER_PATH ?? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const port = Number(process.env.DSH_BROWSER_PORT ?? 9223);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function endpoint(path, init) {
+async function browserPort() {
+  if (process.env.DSH_BROWSER_PORT) return Number(process.env.DSH_BROWSER_PORT);
+  const server = createServer();
+  await new Promise((ok, bad) => { server.once('error', bad); server.listen(0, '127.0.0.1', ok); });
+  const port = server.address().port;
+  await new Promise(ok => server.close(ok));
+  return port;
+}
+
+async function endpoint(port, path, init) {
   for (let i = 0; i < 150; i++) {
     try { const r = await fetch(`http://127.0.0.1:${port}${path}`, init); if (r.ok) return await r.json(); } catch {}
     await sleep(200);
@@ -30,14 +39,15 @@ export function redact(value) {
  */
 export async function withPage(url, fn) {
   const profile = await mkdtemp(join(tmpdir(), 'dsh-ui-check-'));
+  const port = await browserPort();
   const child = spawn(edge, [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, 'about:blank',
   ], { stdio: 'ignore', windowsHide: true });
-  let ws;
+  let ws, send;
   try {
-    await endpoint('/json/version');
-    const target = await endpoint(`/json/new?${encodeURIComponent('about:blank')}`, { method: 'PUT' });
+    await endpoint(port, '/json/version');
+    const target = await endpoint(port, `/json/new?${encodeURIComponent('about:blank')}`, { method: 'PUT' });
     ws = new WebSocket(target.webSocketDebuggerUrl);
     await new Promise((ok, bad) => { ws.addEventListener('open', ok, { once: true }); ws.addEventListener('error', bad, { once: true }); });
     let seq = 0; const pending = new Map(); const consoleErrors = [];
@@ -48,7 +58,7 @@ export async function withPage(url, fn) {
       if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') consoleErrors.push(redact(message.params.args.map(a => String(a.value ?? a.description ?? '')).join(' ')).slice(0, 400));
       if (message.method === 'Log.entryAdded' && message.params.entry.level === 'error') consoleErrors.push(redact(String(message.params.entry.text)).slice(0, 400));
     });
-    const send = (method, params = {}) => new Promise((ok, bad) => {
+    send = (method, params = {}) => new Promise((ok, bad) => {
       const id = ++seq; pending.set(id, { ok, bad }); ws.send(JSON.stringify({ id, method, params }));
     });
     const evaluate = async expression => {
@@ -67,6 +77,11 @@ export async function withPage(url, fn) {
     const value = await fn({ send, evaluate, screenshot, sleep, consoleErrors });
     return { value, consoleErrors };
   } finally {
+    let timer;
+    if (ws?.readyState === WebSocket.OPEN && send) {
+      try { await Promise.race([send('Browser.close'), new Promise(ok => { timer = setTimeout(ok, 2000); })]); } catch {}
+      clearTimeout(timer);
+    }
     try { ws?.close(); } catch {}
     child.kill();
   }
@@ -76,7 +91,7 @@ export const pageProbe = `(async () => {
   const trace = [];
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const waitFor = async (find, ms = 45000) => { const end = Date.now() + ms; while (Date.now() < end) { const v = find(); if (v) return v; await sleep(200); } return undefined; };
-  const triggerByPopup = () => document.querySelector('button[aria-haspopup="dialog"]');
+  const triggerByPopup = () => [...document.querySelectorAll('button[aria-haspopup="dialog"]')].find(button => !button.closest('.cgp-sidebar'));
   const triggerByName = () => [...document.querySelectorAll('button')].find(b => /^(打开侧边栏|Open sidebar)$/i.test(b.getAttribute('aria-label') ?? ''));
   const triggerSettings = () => [...document.querySelectorAll('button')].find(b => /^(设置|Settings)$/i.test(b.getAttribute('aria-label') ?? ''));
   const dialogNav = () => document.querySelector('[role="dialog"] nav button');

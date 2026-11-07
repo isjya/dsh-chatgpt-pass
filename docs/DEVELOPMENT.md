@@ -36,7 +36,7 @@ pnpm pack:release
 - `node scripts/verify/ui-session.mjs source <port> <输出前缀>`：启动隔离源码宿主并检查设置页；先设置 `DSH_CHATGPT_SOURCE_ROOT`。
 - `node scripts/verify/ui-session.mjs desktop <port> <输出前缀>`：启动隔离 Desktop 宿主；先设置 `DSH_CHATGPT_DESKTOP_ROOT` 为 Desktop 安装目录。
 - `node scripts/verify/lifecycle-check.mjs source|desktop`：在全新隔离目录验证安装、升级与卸载。
-- `node scripts/verify/sidebar-host-check.mjs source|desktop`：在全新隔离宿主中使用合成元数据，验证余量卡片位于主侧边栏底部、关闭设置后仍显示，以及更换端口重启后保留开关；不登录真实账号。
+- `node scripts/verify/sidebar-host-check.mjs source|desktop`：在全新隔离宿主中使用合成元数据，验证主侧边栏的紧凑 5 小时入口、点击详情弹窗、关闭设置后仍显示，以及更换端口重启后保留开关；不登录真实账号。
 
 `DSH_CHATGPT_HOME` 指定隔离的 DSH_HOME，默认 `.validation/<target>-home`；`DSH_CHATGPT_PROFILE` 指定测试 profile。真实账号只读状态与用量探针使用 `DSH_PROBE_HOME`。真实文本／工具探针会消耗订阅用量，须在明确决定执行后单独运行，不进入 CI。
 
