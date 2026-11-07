@@ -106,7 +106,7 @@ describe('Codex (Business) path', () => {
       reasoning: { efforts: [{ id: 'low', name: 'Low', description: 'Fast' }, { id: 'high', name: 'High', description: 'Deep' }], defaultEffort: 'low' } });
     expect(seen[0]!.url).toBe(`${CODEX_BASE}/models?client_version=1.0.0`);
     expect(seen[0]!.headers.get('chatgpt-account-id')).toBe(identity.accountId);
-    expect(seen[0]!.headers.get('originator')).toBe('dsh-chatgpt-provider');
+    expect(seen[0]!.headers.get('originator')).toBe('dsh-chatgpt-pass');
 
     const chunks = await collect(adapter.stream({ provider: PROVIDER, model: 'gpt-5.6-sol', reasoningEffort: 'high' as any,
       messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }] }));

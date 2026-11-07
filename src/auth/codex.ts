@@ -10,7 +10,7 @@ import type { TokenSet } from './store.js';
 // rejects third-party SIWC agents. This is not an official third-party path.
 export const CODEX_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
 export const CODEX_BASE = 'https://chatgpt.com/backend-api/codex';
-export const CODEX_ORIGINATOR = 'dsh-chatgpt-provider';
+export const CODEX_ORIGINATOR = 'dsh-chatgpt-pass';
 // The catalog filters models by this version (newer models declare minimal_client_version).
 // The Codex backend accepts a plain semver; older clients see a reduced catalog.
 export const CODEX_CLIENT_VERSION = '1.0.0';

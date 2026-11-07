@@ -1,6 +1,6 @@
 # Development instructions
 
-This repository contains the independent dsh-chatgpt-provider Harness bundle. Read README.md and docs/DEVELOPMENT.md before making changes.
+This repository contains the independent dsh-chatgpt-pass Harness bundle. Read README.md and docs/DEVELOPMENT.md before making changes.
 
 - Integrate through public Harness exports. Do not modify a Harness installation, sibling checkout or another application's credentials.
 - Keep official SIWC and experimental Codex connections separate. SIWC uses the public OpenAI API; the Codex compatibility route uses this plugin's own OAuth flow. Never read another client's login cache or fall back to API-key billing.

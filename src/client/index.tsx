@@ -22,8 +22,8 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespaceMap { chatgptProvider: Api }
 }
 // No business input parameters; public descriptor mounting preserves host ownership and lifecycle.
-export const contribution: TypertRemoteContribution = { package: 'dsh-chatgpt-provider', descriptors: ['view', 'login', 'loginCodex', 'consent', 'cancel', 'models', 'usage', 'logout'].map(method => ({
-  id: `dsh-chatgpt-provider:chatgptProvider/${method}`, service: 'chatgptProvider', namespace: 'chatgptProvider', method, invocation: { kind: 'direct' as const }, parameters: [], result: { mode: 'src-json' as const },
+export const contribution: TypertRemoteContribution = { package: 'dsh-chatgpt-pass', descriptors: ['view', 'login', 'loginCodex', 'consent', 'cancel', 'models', 'usage', 'logout'].map(method => ({
+  id: `dsh-chatgpt-pass:chatgptProvider/${method}`, service: 'chatgptProvider', namespace: 'chatgptProvider', method, invocation: { kind: 'direct' as const }, parameters: [], result: { mode: 'src-json' as const },
 })) };
 async function value<T>(request: Promise<RemoteResult<T>>): Promise<T> {
   const result = await request; if (!result.ok) throw new Error(result.error.message); return result.value;

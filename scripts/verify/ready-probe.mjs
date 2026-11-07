@@ -10,7 +10,7 @@ export async function apply(ctx) {
     assert.equal(view.state, 'disconnected');
     assert(!JSON.stringify(view).includes('token'));
     stage = 'client-graph'; let entry;
-    const find = value => { if (!value || typeof value !== 'object') return; if (value.id === 'dsh-chatgpt-provider' && value.url) entry = value; else for (const v of Object.values(value)) find(v); };
+    const find = value => { if (!value || typeof value !== 'object') return; if (value.id === 'dsh-chatgpt-pass' && value.url) entry = value; else for (const v of Object.values(value)) find(v); };
     find(ctx.clientModules.graph()); assert(entry);
     stage = 'client-asset'; const asset = await ctx.clientModules.fetchBundle(new Request(new URL(entry.url, 'http://127.0.0.1')));
     assert.equal(asset.status, 200); const body = await asset.text(); assert(body.includes('使用 ChatGPT 登录'));

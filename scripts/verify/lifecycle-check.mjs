@@ -22,9 +22,9 @@ function run(args) {
   });
 }
 const manifest = () => readFile(resolve(home, 'profiles', profile, 'package.json'), 'utf8').then(JSON.parse);
-const installedVersion = () => readFile(resolve(home, 'profiles', profile, 'node_modules', 'dsh-chatgpt-provider', 'package.json'), 'utf8').then(JSON.parse).then(p => p.version);
+const installedVersion = () => readFile(resolve(home, 'profiles', profile, 'node_modules', 'dsh-chatgpt-pass', 'package.json'), 'utf8').then(JSON.parse).then(p => p.version);
 const version = JSON.parse(await readFile('package.json', 'utf8')).version;
-const artifact = `dsh-chatgpt-provider-${version}.tgz`;
+const artifact = `dsh-chatgpt-pass-${version}.tgz`;
 const file = resolve('artifacts', artifact);
 
 // Build a same-code, version-bumped copy so the upgrade replaces bytes instead of
@@ -41,13 +41,13 @@ variant.version = `${version}-upgrade-probe`;
 await writeFile(join(variantPkgDir, 'package.json'), JSON.stringify(variant, null, 2) + '\n');
 const pack = spawnSync('npm.cmd', ['pack', '--pack-destination', variantRoot, '--ignore-scripts'], { cwd: variantPkgDir, encoding: 'utf8', shell: process.platform === 'win32', windowsHide: true });
 assert.equal(pack.status, 0, String(pack.stderr));
-const variantFile = join(variantRoot, `dsh-chatgpt-provider-${variant.version}.tgz`);
+const variantFile = join(variantRoot, `dsh-chatgpt-pass-${variant.version}.tgz`);
 
 await run(['--from-default-profile', 'web', '--dump-config']);
 const before = (await manifest()).dsh.profile.bundles;
 await run(['plugin', 'add', file]);
 assert.equal(await installedVersion(), version);
-assert((await manifest()).dsh.profile.bundles.includes('dsh-chatgpt-provider'));
+assert((await manifest()).dsh.profile.bundles.includes('dsh-chatgpt-pass'));
 async function ready() {
   const port = target === 'source' ? '3199' : '3200';
   const output = await run(['--patch', patch, '--no-open', '--port', port]);
@@ -62,7 +62,7 @@ const upgraded = await ready(); assert.equal(installed.hostHash, upgraded.hostHa
 await run(['plugin', 'add', '--force', file]);
 assert.equal(await installedVersion(), version);
 const restored = await ready(); assert.equal(installed.hostHash, restored.hostHash);
-await run(['plugin', 'remove', 'dsh-chatgpt-provider']);
+await run(['plugin', 'remove', 'dsh-chatgpt-pass']);
 assert.deepEqual((await manifest()).dsh.profile.bundles, before);
 const result = {
   target, homePurpose: 'isolated synthetic package lifecycle', profile, package: version, artifact,

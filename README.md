@@ -2,29 +2,31 @@
   <img src="icon.svg" width="80" height="80" alt="ChatGPT Subscription plugin icon">
 </p>
 
-<h1 align="center">ChatGPT Subscription for DeepSeek Harness</h1>
+<h1 align="center">ChatGPT Pass</h1>
 
 <p align="center">
   <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-Use authorized ChatGPT subscription models in DeepSeek Harness. This plugin provides account connections, a model catalog, streaming text, local function tools, and remaining subscription quota when available.
+Use authorized ChatGPT subscription models in DeepSeek Harness with `dsh-chatgpt-pass`. This plugin provides account connections, a model catalog, streaming text, local function tools, and remaining subscription quota when available.
 
 This is an independently maintained third-party plugin, not an official OpenAI or DeepSeek plugin. Validated Harness versions are **0.2.1-rc.5** and **0.2.2-rc.1**. Other versions have not been verified.
 
 ## Installation
 
-Download `dsh-chatgpt-provider-<version>.tgz` and its `.sha256` file from [Releases](https://github.com/isjya/dsh-chatgpt-provider/releases). Add the local package in the Harness plugin manager and enable it. Release packages are prebuilt; users do not need to install Node.js separately, clone the source, or run build scripts.
+Download `dsh-chatgpt-pass-<version>.tgz` and its `.sha256` file from [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases). Add the local package in the Harness plugin manager and enable it. Release packages are prebuilt; users do not need to install Node.js separately, clone the source, or run build scripts.
 
-Current package: [v0.2.14](https://github.com/isjya/dsh-chatgpt-provider/releases/download/v0.2.14/dsh-chatgpt-provider-0.2.14.tgz). If your plugin manager accepts download links, you can paste this `.tgz` URL directly.
+Current package: [v0.2.15](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.15/dsh-chatgpt-pass-0.2.15.tgz). If your plugin manager accepts download links, you can paste this `.tgz` URL directly. This project is distributed through GitHub Releases and is not currently published on npm.
 
 For CLI installation, replace the profile and filename with your actual values:
 
 ```sh
-dsh plugin --profile <profile> add ./dsh-chatgpt-provider-<version>.tgz
+dsh plugin --profile <profile> add ./dsh-chatgpt-pass-<version>.tgz
 ```
 
 See the [installation guide (Chinese)](docs/INSTALL.md) for installation, upgrades, removal, and compatibility details.
+
+Upgrading from this repository's v0.2.14 or earlier: remove the old `dsh-chatgpt-provider` plugin without signing out, install the new package, and restart Harness. Account credentials and model identifiers are preserved. Avoid enabling both packages at the same time.
 
 ## Preview
 

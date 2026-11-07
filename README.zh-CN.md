@@ -2,29 +2,31 @@
   <img src="icon.svg" width="80" height="80" alt="ChatGPT 订阅插件图标">
 </p>
 
-<h1 align="center">ChatGPT 订阅 · DeepSeek Harness 插件</h1>
+<h1 align="center">ChatGPT Pass · 订阅通行证</h1>
 
 <p align="center">
   <a href="README.md">English</a> · <strong>简体中文</strong>
 </p>
 
-让 DeepSeek Harness 使用已授权的 ChatGPT 订阅模型。插件提供账号连接、模型目录、流式文本、本地函数工具，以及可用时的订阅剩余额度。
+`dsh-chatgpt-pass` 让 DeepSeek Harness 使用已授权的 ChatGPT 订阅模型。插件提供账号连接、模型目录、流式文本、本地函数工具，以及可用时的订阅剩余额度。
 
 这是独立维护的第三方插件，并非 OpenAI 或 DeepSeek 官方插件。当前版本支持 Harness **0.2.1-rc.5** 与 **0.2.2-rc.1**，其他版本尚未验证。
 
 ## 安装
 
-在 [Releases](https://github.com/isjya/dsh-chatgpt-provider/releases) 下载 `dsh-chatgpt-provider-<版本>.tgz` 和对应 `.sha256` 文件，然后在 Harness 的插件管理器中添加本地安装包并启用。安装包已经构建，用户无需单独安装 Node.js、下载源码或运行构建脚本。
+在 [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases) 下载 `dsh-chatgpt-pass-<版本>.tgz` 和对应 `.sha256` 文件，然后在 Harness 的插件管理器中添加本地安装包并启用。安装包已经构建，用户无需单独安装 Node.js、下载源码或运行构建脚本。
 
-当前安装包：[v0.2.14](https://github.com/isjya/dsh-chatgpt-provider/releases/download/v0.2.14/dsh-chatgpt-provider-0.2.14.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。
+当前安装包：[v0.2.15](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.15/dsh-chatgpt-pass-0.2.15.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
 
 使用 CLI 时，将命令中的文件名和 profile 替换为实际值：
 
 ```sh
-dsh plugin --profile <profile> add ./dsh-chatgpt-provider-<版本>.tgz
+dsh plugin --profile <profile> add ./dsh-chatgpt-pass-<版本>.tgz
 ```
 
 完整安装、升级、卸载和兼容性说明见 [安装指南](docs/INSTALL.md)。
+
+从本仓库 v0.2.14 及更早版本升级：先移除旧的 `dsh-chatgpt-provider` 插件，再安装新包并重启 Harness。迁移时不要点击「退出登录」，已有登录记录和模型标识会保留；不要同时启用新旧两个包。
 
 ## 界面示例
 

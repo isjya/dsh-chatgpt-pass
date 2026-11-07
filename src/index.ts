@@ -10,7 +10,7 @@ import { ChatGPTAdapter } from './llm/adapter.js';
 import { PROVIDER } from './llm/request.js';
 import { ProviderService } from './service.js';
 
-export const name = 'dsh-chatgpt-provider';
+export const name = 'dsh-chatgpt-pass';
 export const inject = ['llm', 'credentials', 'authorization'];
 // A public volatile Config lets the host Models page join this entry's settings namespace.
 // Credentials and protocol options have no place in this schema.
