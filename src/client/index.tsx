@@ -8,6 +8,7 @@ import { type Api, value } from './api.js';
 import { ClientState, connectionKey } from './state.js';
 import { Refresh, SidebarQuota } from './sidebar.js';
 import { SidebarPreference, type DisplayPreferences } from './preferences.js';
+import { openSubscriptionSettings } from './settings.js';
 import { UsageCard } from './usage.js';
 import { styles } from './styles.js';
 
@@ -137,9 +138,11 @@ export async function apply(ctx: Context): Promise<void> {
   // rather than resolving a service later from an unscoped React render.
   ctx.inject(['remote.chatgptProvider'], scope => {
     const api = (scope.get('remote') as TypertClientRemote).chatgptProvider;
+    const slots = scope.slots;
+    const onOpenSettings = () => openSubscriptionSettings(slots);
     const client = new ClientState(api, new SidebarPreference(scope.configForms.get<DisplayPreferences>('dsh-chatgpt-pass')));
     scope.effect(() => () => client.dispose());
     scope.slots.inject('settings.section', () => scope.slots.register({ name: 'settings.section', id: 'chatgpt-subscription', order: 45, label: () => 'ChatGPT 订阅' }, () => <Settings client={client} />));
-    scope.slots.inject('sidebar.footer.action', () => scope.slots.register({ name: 'sidebar.footer.action', id: 'chatgpt-subscription-quota', order: 45 }, ({ wide }: SidebarFooterActionOwnerProps) => <SidebarQuota client={client} wide={wide} />));
+    scope.slots.inject('sidebar.footer.action', () => scope.slots.register({ name: 'sidebar.footer.action', id: 'chatgpt-subscription-quota', order: 45 }, ({ wide }: SidebarFooterActionOwnerProps) => <SidebarQuota client={client} wide={wide} onOpenSettings={onOpenSettings} />));
   });
 }

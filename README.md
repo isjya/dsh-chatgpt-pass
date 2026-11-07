@@ -16,7 +16,7 @@ This is an independently maintained third-party plugin, not an official OpenAI o
 
 Download `dsh-chatgpt-pass-<version>.tgz` and its `.sha256` file from [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases). Add the local package in the Harness plugin manager and enable it. Release packages are prebuilt; users do not need to install Node.js separately, clone the source, or run build scripts.
 
-Current package: [v0.2.18](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.18/dsh-chatgpt-pass-0.2.18.tgz). If your plugin manager accepts download links, you can paste this `.tgz` URL directly. This project is distributed through GitHub Releases and is not currently published on npm.
+Current package: [v0.2.19](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.19/dsh-chatgpt-pass-0.2.19.tgz). If your plugin manager accepts download links, you can paste this `.tgz` URL directly. This project is distributed through GitHub Releases and is not currently published on npm.
 
 For CLI installation, replace the profile and filename with your actual values:
 
@@ -49,7 +49,7 @@ Complete authorization on the official browser page, return to Harness, and choo
 
 Codex connections can show the remaining quota and reset countdown for five-hour and weekly windows. When the official connection does not provide quota data, the page shows an empty state rather than estimating usage. Account-wide historical token analytics are not currently available.
 
-Enable **在侧边栏显示余量 (Show quota in sidebar)** to show only the five-hour remaining quota in a compact entry above the main sidebar's account/settings control. Click it to open a detail popover with five-hour and weekly limits, reset countdowns, refresh, and usage management. Click outside or press Escape to close. The option defaults to off, is saved in Harness configuration, updates about once a minute while visible, and hides when the sidebar collapses.
+Enable **在侧边栏显示余量 (Show quota in sidebar)** to show only the five-hour remaining quota in a compact entry above the main sidebar's account/settings control. Click it to open a detail popover with five-hour and weekly limits, reset countdowns, and refresh. **订阅设置 (Subscription settings)** closes the popover and opens this plugin's ChatGPT Subscription page inside Harness. Click outside or press Escape to close. The option defaults to off, is saved in Harness configuration, updates about once a minute while visible, and hides when the sidebar collapses.
 
 **The Business compatibility route is not a third-party integration supported by OpenAI's documentation.** It uses the first-party Codex OAuth client and may be affected by workspace policies, terms of service, or interface changes. Use only accounts and workspaces you are authorized to access. Eligibility, models, and actual limits depend on the authorization result.
 

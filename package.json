@@ -1,6 +1,6 @@
 {
   "name": "dsh-chatgpt-pass",
-  "version": "0.2.18",
+  "version": "0.2.19",
   "description": "ChatGPT subscription models and account settings for DeepSeek Harness",
   "author": "isjya",
   "repository": { "type": "git", "url": "git+https://github.com/isjya/dsh-chatgpt-pass.git" },

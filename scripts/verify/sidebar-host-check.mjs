@@ -70,6 +70,9 @@ for (const [index, port] of [3204, 3205].entries()) {
       if (index === 0) await evaluate(`document.querySelector('.cgp-sidebar-option input').click()`);
       await waitFor(`document.querySelector('.cgp-quota-trigger strong')?.innerText==='84%'`);
       assert.equal(await evaluate(`!!document.querySelector('.cgp-sidebar').closest('[role=dialog]')`), false);
+      // Prove the action selects our section even when General was the previous page.
+      await evaluate(`[...document.querySelectorAll('[role=dialog] nav button')].find(button=>/^(通用设置|General)$/.test(button.innerText.trim())).click()`);
+      await waitFor(`!document.querySelector('.chatgpt-subscription')`);
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       await waitFor(`![...document.querySelectorAll('[role=dialog]')].some(n=>n.getClientRects().length&&n.querySelector('.chatgpt-subscription'))`);
@@ -86,10 +89,13 @@ for (const [index, port] of [3204, 3205].entries()) {
       assert(popover.x > geometry.x + geometry.width && popover.right <= 1428 && popover.bottom <= 888);
       await screenshot(resolve(output, `main-quota-detail-${index}.png`));
       await screenshot(resolve(output, `quota-detail-${index}.png`), { x: 0, y: Math.max(0, popover.y - 20), width: popover.right + 20, height: 900 - Math.max(0, popover.y - 20) });
+      await evaluate(`document.querySelector('.cgp-quota-manage').click()`);
+      await waitFor(`!document.querySelector('.cgp-quota-popover')?.matches(':popover-open') && [...document.querySelectorAll('[role=dialog] h2')].some(n=>n.innerText.trim()==='ChatGPT 订阅')`);
+      await screenshot(resolve(output, `subscription-settings-from-quota-${index}.png`));
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
       await waitFor(`!document.querySelector('.cgp-quota-popover')?.matches(':popover-open')`);
-      return { stage: index === 0 ? 'compact main sidebar entry and click-to-open details' : 'preference restored on another port after Host restart', geometry, popover };
+      return { stage: index === 0 ? 'compact main sidebar entry and click-to-open details' : 'preference restored on another port after Host restart', geometry, popover, opensSubscriptionSettingsFromGeneral: true };
     });
     assert.deepEqual(report.consoleErrors, []); checks.push(report.value);
   } finally { await host.stop(); }

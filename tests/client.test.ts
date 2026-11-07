@@ -7,10 +7,13 @@ import { runInNewContext } from 'node:vm';
 it('P5 client page resolves its Remote namespace in an injected scope before React render', async () => {
   const api = { view: async () => ({ ok: true, value: { state: 'disconnected', sharing: false, signingIn: false } }), models: async () => ({ ok: true, value: [] }) };
   const components = new Map<string, (props?: any) => any>();
+  const openedSections: string[] = [], replacementSections: string[] = [];
+  let shell = { create: () => ({ actions: { openSection: (id: string) => { openedSections.push(id); } } }) };
   class Slots extends Service {
     constructor(ctx: Context) { super(ctx, 'slots'); }
     inject(_name: string, fn: () => void) { fn(); }
     register(options: { name: string }, value: (props?: any) => any) { components.set(options.name, value); return () => {}; }
+    entriesOfSlot(name: string) { expect(name).toBe('sidebar.settings'); return [{ store: shell }]; }
   }
   class Namespace extends Service {
     constructor(ctx: Context) { super(ctx, 'remote.chatgptProvider', true); return Object.assign(this, api); }
@@ -41,6 +44,13 @@ it('P5 client page resolves its Remote namespace in an injected scope before Rea
     expect(sidebar.props.client).toBe(element.props.client);
     expect(sidebar.props.wide).toBe(true);
     expect(element.props.client.sidebar.getSnapshot().value.showSidebarQuota).toBe(false);
+    sidebar.props.onOpenSettings();
+    expect(openedSections).toEqual(['chatgpt-subscription']);
+    // A settings-shell reload must not leave the entry bound to its previous instance.
+    shell = { create: () => ({ actions: { openSection: (id: string) => { replacementSections.push(id); } } }) };
+    sidebar.props.onOpenSettings();
+    expect(openedSections).toEqual(['chatgpt-subscription']);
+    expect(replacementSections).toEqual(['chatgpt-subscription']);
     // The two-path settings surface must expose both entries and keep the Business route labelled experimental.
     expect(client.contribution.descriptors.map((d: any) => d.method)).toContain('loginCodex');
     expect(client.contribution.descriptors.map((d: any) => d.method)).toContain('usage');

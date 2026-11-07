@@ -16,7 +16,7 @@
 
 在 [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases) 下载 `dsh-chatgpt-pass-<版本>.tgz` 和对应 `.sha256` 文件，然后在 Harness 的插件管理器中添加本地安装包并启用。安装包已经构建，用户无需单独安装 Node.js、下载源码或运行构建脚本。
 
-当前安装包：[v0.2.18](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.18/dsh-chatgpt-pass-0.2.18.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
+当前安装包：[v0.2.19](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.19/dsh-chatgpt-pass-0.2.19.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
 
 使用 CLI 时，将命令中的文件名和 profile 替换为实际值：
 
@@ -49,7 +49,7 @@ dsh plugin --profile <profile> add ./dsh-chatgpt-pass-<版本>.tgz
 
 Codex 连接可显示 5 小时与每周剩余额度及重置倒计时。官方连接没有此数据时显示空状态，不生成估算用量。当前不提供账号级历史 Token 分析。
 
-勾选「在侧边栏显示余量」后，主窗口左侧栏底部、账号／设置入口上方只显示 5 小时剩余比例。点击该入口，弹出 5 小时与每周限额、重置倒计时、刷新和管理用量；点击外部或按 Escape 关闭。选项默认关闭，保存在 Harness 配置中；入口可见时约每分钟更新，侧边栏收起时隐藏。
+勾选「在侧边栏显示余量」后，主窗口左侧栏底部、账号／设置入口上方只显示 5 小时剩余比例。点击该入口，弹出 5 小时与每周限额、重置倒计时和刷新；点击「订阅设置」会关闭弹窗并进入 Harness 内的「ChatGPT 订阅」设置页。点击外部或按 Escape 关闭。选项默认关闭，保存在 Harness 配置中；入口可见时约每分钟更新，侧边栏收起时隐藏。
 
 **Business 兼容路径不属于 OpenAI 文档支持的第三方接入方式。** 它使用 Codex 第一方 OAuth 客户端，可能受工作区策略、服务条款及接口变动影响。只使用你获准使用的账号与工作区。账号资格、模型和实际限额以授权结果为准。
 

@@ -99,7 +99,7 @@ export const sidebarStyles = `
 .cgp-sidebar .cgp-quota-updated button{padding:3px 6px;border:0;border-radius:5px;background:transparent;color:inherit;font:inherit;cursor:pointer}
 .cgp-sidebar .cgp-quota-updated button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.07))}
 .cgp-sidebar .cgp-quota-updated button:disabled{opacity:.45;cursor:default}
-.cgp-sidebar .cgp-quota-manage{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--cgp-border);color:inherit;text-decoration:none;font-size:13px;line-height:22px}
+.cgp-sidebar .cgp-quota-manage{display:flex;align-items:center;justify-content:space-between;width:100%;margin-top:12px;padding:12px 0 0;border:0;border-top:1px solid var(--cgp-border);background:transparent;color:inherit;font:inherit;text-align:left;font-size:13px;line-height:22px;cursor:pointer}
 .cgp-sidebar .cgp-quota-manage:hover{text-decoration:underline}
 .cgp-sidebar .cgp-quota-manage span{color:var(--cgp-muted)}
 .cgp-sidebar .cgp-quota-warning,.cgp-sidebar [data-stale=true]{color:var(--cgp-warning)}

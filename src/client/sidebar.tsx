@@ -17,10 +17,11 @@ function positionPopover(trigger: HTMLElement, panel: HTMLElement): void {
   panel.style.top = `${Math.max(margin, Math.min(top, height - rect.height - margin))}px`;
 }
 
-function QuotaCard({ client }: { client: ClientState }) {
+function QuotaCard({ client, onOpenSettings }: { client: ClientState; onOpenSettings: () => void }) {
   const { view, stateError, usage, usageError, usageLoading, now } = useSyncExternalStore(client.subscribeSidebar, client.getSnapshot);
   const trigger = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
   const panelId = useId(), headingId = useId(), [open, setOpen] = useState(false);
+  const [navigationError, setNavigationError] = useState('');
   const connection = connectionKey(view), previousConnection = useRef(connection);
   const canRead = view?.state === 'connected' && view.sharing && !view.signingIn && view.method === 'codex';
   const status = stateError ? '连接状态暂不可用' : !view ? '正在读取余量…' : view.signingIn ? '等待登录完成…'
@@ -59,6 +60,12 @@ function QuotaCard({ client }: { client: ClientState }) {
     if (previousConnection.current && previousConnection.current !== connection && panel.current?.matches(':popover-open')) panel.current.hidePopover();
     previousConnection.current = connection;
   }, [connection]);
+  const openSettings = () => {
+    setNavigationError('');
+    panel.current?.hidePopover();
+    try { onOpenSettings(); }
+    catch { setNavigationError('暂时无法打开订阅设置，请重试。'); panel.current?.showPopover(); }
+  };
   return <section className="cgp-sidebar" aria-label="ChatGPT 订阅余量">
     <style>{sidebarStyles}</style>
     <button ref={trigger} className="cgp-quota-trigger" type="button" {...{ popovertarget: panelId }} aria-haspopup="dialog" aria-controls={panelId} aria-expanded={open}
@@ -78,13 +85,14 @@ function QuotaCard({ client }: { client: ClientState }) {
       <div className="cgp-quota-updated"><span data-stale={!!(usageError || stateError)}>{usageError || stateError ? usage ? `更新失败 · ${updatedAt} 数据` : '更新失败，请重试' : usage ? `更新于 ${updatedAt}` : '用量以 ChatGPT 为准'}</span>
         {canRead && <button type="button" aria-label="刷新侧边栏余量" disabled={usageLoading} onClick={() => void client.refreshView().then(() => client.refreshUsage())}>{usageLoading ? '更新中…' : '刷新'}</button>}
       </div>
-      <a className="cgp-quota-manage" href="https://chatgpt.com/settings/usage" target="_blank" rel="noreferrer noopener">管理用量 <span aria-hidden="true">↗</span></a>
+      {navigationError && <p className="cgp-quota-warning" role="alert">{navigationError}</p>}
+      <button className="cgp-quota-manage" type="button" aria-label="打开 ChatGPT 订阅设置" onClick={openSettings}>订阅设置 <span aria-hidden="true">→</span></button>
     </div>
   </section>;
 }
 
 /** A compact entry in the expanded sidebar; details live in the native top-layer popover. */
-export function SidebarQuota({ client, wide }: SidebarFooterActionOwnerProps & { client: ClientState }) {
+export function SidebarQuota({ client, wide, onOpenSettings }: SidebarFooterActionOwnerProps & { client: ClientState; onOpenSettings: () => void }) {
   const preference = useSyncExternalStore(client.sidebar.subscribe, client.sidebar.getSnapshot);
-  return preference.value?.showSidebarQuota && wide ? <QuotaCard client={client} /> : null;
+  return preference.value?.showSidebarQuota && wide ? <QuotaCard client={client} onOpenSettings={onOpenSettings} /> : null;
 }
