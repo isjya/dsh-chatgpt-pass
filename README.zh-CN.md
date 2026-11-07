@@ -28,6 +28,10 @@ dsh plugin --profile <profile> add ./dsh-chatgpt-pass-<版本>.tgz
 
 ## 界面示例
 
+![侧边栏紧凑余量入口与详情弹窗](docs/assets/sidebar-quota-popover.png)
+
+侧边栏仅显示 5 小时余量，点击后展开详情。图中为演示数据。
+
 ![ChatGPT 订阅设置页](docs/assets/subscription-dark.png)
 
 图中账号与用量为演示数据。

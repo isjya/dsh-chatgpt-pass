@@ -28,6 +28,10 @@ See the [installation guide (Chinese)](docs/INSTALL.md) for installation, upgrad
 
 ## Preview
 
+![Compact sidebar quota and usage details popover](docs/assets/sidebar-quota-popover.png)
+
+The sidebar shows the five-hour quota; click it to open usage details. The image uses demonstration data.
+
 ![ChatGPT subscription settings](docs/assets/subscription-dark.png)
 
 The account and quota shown above are demonstration data. The settings page currently uses Chinese labels; their English meanings are provided below.

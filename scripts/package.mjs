@@ -10,7 +10,7 @@ const pack = Array.isArray(result) ? result[0] : result.files ? result : Object.
 const paths = pack.files.map(f => f.path);
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
 for (const path of paths) {
-  if (!/^(lib\/|locale\/(?:en|zh)\.json$|icon\.svg$|package.json$|cordis.patch.yml$|README(?:\.zh-CN)?\.md$|LICENSE$|THIRD_PARTY_NOTICES.md$|docs\/(?:INSTALL|DEVELOPMENT|ARCHITECTURE|RELEASING)\.md$|docs\/assets\/subscription-dark\.png$)/.test(path) || /node_modules|\.validation|\.cache|credentials/i.test(path)) throw new Error(`Unexpected packaged path: ${path}`);
+  if (!/^(lib\/|locale\/(?:en|zh)\.json$|icon\.svg$|package.json$|cordis.patch.yml$|README(?:\.zh-CN)?\.md$|LICENSE$|THIRD_PARTY_NOTICES.md$|docs\/(?:INSTALL|DEVELOPMENT|ARCHITECTURE|RELEASING)\.md$|docs\/assets\/(?:subscription-dark|sidebar-quota-popover)\.png$)/.test(path) || /node_modules|\.validation|\.cache|credentials/i.test(path)) throw new Error(`Unexpected packaged path: ${path}`);
   const content = path.endsWith('.png') ? '' : readFileSync(path, 'utf8');
   if (/SYNTHETIC_SECRET_DO_NOT_EXPOSE|[A-Z]:[\\/]pROJECT|[?&](?:code|id_token_hint|state)=|Bearer eyJ/.test(content)) throw new Error(`Sensitive/development marker in ${path}`);
 }
