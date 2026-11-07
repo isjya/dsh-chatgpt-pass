@@ -16,7 +16,7 @@ This is an independently maintained third-party plugin, not an official OpenAI o
 
 Download `dsh-chatgpt-pass-<version>.tgz` and its `.sha256` file from [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases). Add the local package in the Harness plugin manager and enable it. Release packages are prebuilt; users do not need to install Node.js separately, clone the source, or run build scripts.
 
-Current package: [v0.2.15](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.15/dsh-chatgpt-pass-0.2.15.tgz). If your plugin manager accepts download links, you can paste this `.tgz` URL directly. This project is distributed through GitHub Releases and is not currently published on npm.
+Current package: [v0.2.16](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.16/dsh-chatgpt-pass-0.2.16.tgz). If your plugin manager accepts download links, you can paste this `.tgz` URL directly. This project is distributed through GitHub Releases and is not currently published on npm.
 
 For CLI installation, replace the profile and filename with your actual values:
 

@@ -271,6 +271,54 @@ describe('Codex (Business) path', () => {
     expect(await siwc.usage()).toBeUndefined();
   });
 
+  it('metadata failures remain local and do not turn a connected session into a persistent connection alert', async () => {
+    const session = new SessionManager(new Store(new MemoryStore()), new OAuth(async () => { throw new Error('unused'); }));
+    session.codex = { authorize: async () => ({ tokens: tokens(), identity, nonce: 'n' }) } as unknown as CodexOAuth;
+    await session.login({ method: 'codex', signal: new AbortController().signal } as any);
+    let failing = true;
+    const adapter = new ChatGPTAdapter(session, async url => {
+      if (failing) throw new TypeError('synthetic transient network failure');
+      return String(url).includes('/models') ? Response.json({ models: [{ slug: 'fixture', visibility: 'list' }] })
+        : Response.json({ rate_limit: { primary_window: { used_percent: 16 } } });
+    });
+    await expect(adapter.usage()).rejects.toMatchObject({ code: 'NETWORK' });
+    await expect(adapter.listModels()).rejects.toMatchObject({ code: 'NETWORK' });
+    expect(await session.view()).toMatchObject({ state: 'connected', sharing: true });
+    expect((await session.view()).error).toBeUndefined();
+    failing = false;
+    expect(await adapter.usage()).toMatchObject({ windows: [{ usedPercent: 16 }] });
+    expect(await adapter.listModels()).toHaveLength(1);
+    expect((await session.view()).error).toBeUndefined();
+  });
+
+  it('metadata reads wait until authorization finishes, including its final credential commit', async () => {
+    const memory = new MemoryStore();
+    const session = new SessionManager(new Store(memory), new OAuth(async () => { throw new Error('unused'); }));
+    session.codex = { authorize: async () => ({ tokens: tokens(), identity, nonce: 'n' }) } as unknown as CodexOAuth;
+    let entered!: () => void, release!: () => void;
+    const committed = new Promise<void>(r => { entered = r; });
+    const resume = new Promise<void>(r => { release = r; });
+    const update = memory.modifyRecord.bind(memory);
+    memory.modifyRecord = async (key, change) => {
+      const record = await update(key, change);
+      if ((record?.payload as any)?.state === 'connected' && !((record?.payload as any)?.attempt)) { entered(); await resume; }
+      return record;
+    };
+    let requests = 0;
+    const adapter = new ChatGPTAdapter(session, async () => { requests++; return Response.json({ rate_limit: { primary_window: { used_percent: 16 } } }); });
+    const login = session.login({ method: 'codex', signal: new AbortController().signal } as any);
+    try {
+      await committed;
+      expect(await session.view()).toMatchObject({ state: 'connected', signingIn: true });
+      expect(await adapter.listModels()).toEqual([]);
+      expect(await adapter.usage()).toBeUndefined();
+      expect(requests).toBe(0);
+    } finally { release(); await login; }
+    expect((await session.view()).signingIn).toBe(false);
+    expect(await adapter.usage()).toMatchObject({ windows: [{ usedPercent: 16 }] });
+    expect(requests).toBe(1);
+  });
+
   it('CODEX-AGENT-01 Harness Agent executes two read-only tools through the Codex transport', async () => {
     const memory = new MemoryStore();
     const session = new SessionManager(new Store(memory), new OAuth(async () => { throw new Error('unused'); }), () => {});

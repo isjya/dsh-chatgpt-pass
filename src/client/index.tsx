@@ -36,12 +36,15 @@ const Chevron = () => <svg className="cgp-chevron" width="14" height="14" viewBo
 const Refresh = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 18 17" /></svg>;
 export function Settings({ api }: { api: Api }) {
   const [view, setView] = useState<SessionView>(), [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const [stateError, setStateError] = useState('');
   const [models, setModels] = useState<{ id: string; name: string }[]>([]), [link, setLink] = useState(''), [busy, setBusy] = useState(false);
   const [usage, setUsage] = useState<UsageView | null>(null);
   const [modelsLoading, setModelsLoading] = useState(false), [usageLoading, setUsageLoading] = useState(false);
   const [modelsError, setModelsError] = useState(''), [usageError, setUsageError] = useState('');
   const popup = useRef<Window | null>(null), waiting = useRef(false);
-  const connection = view?.sharing ? `${view.method}:${view.account ?? ''}` : '';
+  // Credentials can be committed before the authorization flow rotates its signal.
+  // Wait for that flow to finish before starting account-bound reads.
+  const connection = view?.sharing && !view.signingIn ? `${view.method}:${view.account ?? ''}` : '';
   const currentConnection = useRef(connection); currentConnection.current = connection;
   useEffect(() => {
     let disposed = false, reading = false;
@@ -50,20 +53,31 @@ export function Settings({ api }: { api: Api }) {
       if (waiting.current && popup.current?.closed) cancelOwned();
       if (reading) return;
       reading = true;
-      void value(api.view()).then(v => { if (!disposed) { setView(v); if (!v.signingIn) { waiting.current = false; popup.current = null; setLink(''); } } }, () => { if (!disposed) setError('暂时无法读取连接状态。'); }).finally(() => { reading = false; });
+      void value(api.view()).then(v => { if (!disposed) { setView(v); setStateError(''); if (!v.signingIn) { waiting.current = false; popup.current = null; setLink(''); } } }, () => { if (!disposed) setStateError('暂时无法读取连接状态。'); }).finally(() => { reading = false; });
     };
     window.addEventListener('pagehide', cancelOwned);
     refresh(); const timer = setInterval(refresh, 2000); return () => { disposed = true; clearInterval(timer); window.removeEventListener('pagehide', cancelOwned); cancelOwned(); };
   }, [api]);
   useEffect(() => {
     let disposed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     setModels([]); setUsage(null); setModelsError(''); setUsageError('');
     setModelsLoading(Boolean(connection)); setUsageLoading(Boolean(connection && view?.method === 'codex'));
     if (connection) {
       void value(api.models()).then(m => { if (!disposed) setModels(m); }, () => { if (!disposed) setModelsError('模型暂时无法加载，请重试。'); }).finally(() => { if (!disposed) setModelsLoading(false); });
-      if (view?.method === 'codex') void value(api.usage()).then(u => { if (!disposed) setUsage(u); }, () => { if (!disposed) setUsageError('用量暂时无法更新，请重试。'); }).finally(() => { if (!disposed) setUsageLoading(false); });
+      if (view?.method === 'codex') {
+        const loadUsage = async (retry: boolean) => {
+          let retrying = false;
+          try { const next = await value(api.usage()); if (!disposed) { setUsage(next); setUsageError(''); } }
+          catch {
+            if (!disposed && retry) { retrying = true; retryTimer = setTimeout(() => void loadUsage(false), 1000); }
+            else if (!disposed) setUsageError('用量暂时无法更新，请重试。');
+          } finally { if (!disposed && !retrying) setUsageLoading(false); }
+        };
+        void loadUsage(true);
+      }
     }
-    return () => { disposed = true; };
+    return () => { disposed = true; clearTimeout(retryTimer); };
   }, [api, connection]);
   const refreshModels = async () => {
     const key = connection; setModelsLoading(true); setModelsError('');
@@ -77,11 +91,25 @@ export function Settings({ api }: { api: Api }) {
     catch { if (currentConnection.current === key) setUsageError('用量暂时无法更新，请重试。'); }
     finally { if (currentConnection.current === key) setUsageLoading(false); }
   };
-  const run = async (f: () => Promise<void>) => { setError(''); setNotice(''); setBusy(true); try { await f(); setView(await value(api.view())); } catch (e) { setError(e instanceof Error ? e.message : '操作未完成，请重试。'); } finally { setBusy(false); } };
+  const run = async (f: () => Promise<void>) => {
+    setError(''); setNotice(''); setBusy(true);
+    try {
+      await f();
+      try { setView(await value(api.view())); setStateError(''); } catch { setStateError('暂时无法读取连接状态。'); }
+    } catch (e) { setError(e instanceof Error ? e.message : '操作未完成，请重试。'); }
+    finally { setBusy(false); }
+  };
   const login = (consent = false, codex = false) => run(async () => {
     // Reserve a browser window during the click so normal popup rules allow the official page.
     const opened = window.open('about:blank', '_blank'); popup.current = opened;
-    try { const result = await value(codex ? api.loginCodex() : consent ? api.consent() : api.login()); const url = officialLink(result.url); waiting.current = true; setLink(url); if (opened) { opened.opener = null; opened.location.replace(url); } }
+    try {
+      const result = await value(codex ? api.loginCodex() : consent ? api.consent() : api.login());
+      const url = officialLink(result.url); waiting.current = true; setLink(url);
+      if (opened) { opened.opener = null; opened.location.replace(url); }
+      // Desktop denies blank windows and opens HTTP(S) URLs in the system browser.
+      // A null return does not mean its external-browser dispatch failed.
+      else window.open(url, '_blank', 'noopener,noreferrer');
+    }
     catch (e) { opened?.close(); waiting.current = false; popup.current = null; throw e; }
   });
   const disabled = busy || !view || view.signingIn;
@@ -104,7 +132,7 @@ export function Settings({ api }: { api: Api }) {
     </div>
     {view?.state === 'identity_only' && <div className="cgp-feedback cgp-waiting"><span>开启订阅共享后，即可使用已授权的模型。</span><button className="cgp-primary" disabled={disabled} onClick={() => void login(true)}>启用订阅共享</button></div>}
     {view?.signingIn && <div className="cgp-feedback cgp-waiting" role="status"><span>请在浏览器中完成登录</span>{link && <a href={link} target="_blank" rel="noreferrer noopener">继续授权 ↗</a>}<button className="cgp-quiet" onClick={() => void run(async () => { await value(api.cancel()); waiting.current = false; setLink(''); })}>取消登录</button></div>}
-    {(error || view?.error) && <div className="cgp-feedback" role="alert">{error || view?.error?.message}{view?.error?.requestId && <small>（请求编号：{view.error.requestId}）</small>}{view?.error?.code === 'AUTH_TEMPORARY' && <button disabled={disabled} onClick={() => void run(refreshModels)}>恢复连接</button>}</div>}
+    {(error || stateError || view?.error) && <div className="cgp-feedback" role="alert">{error || stateError || view?.error?.message}{view?.error?.requestId && <small>（请求编号：{view.error.requestId}）</small>}{view?.error?.code === 'AUTH_TEMPORARY' && <button disabled={disabled} onClick={() => void run(refreshModels)}>恢复连接</button>}</div>}
     {notice && <div className="cgp-feedback" role="status">{notice}</div>}
     {view && (view.state === 'disconnected' || view.state === 'reauth_required') ? <div className="cgp-section">{loginOptions}</div> : view && <details className="cgp-switch"><summary>切换连接方式<Chevron /></summary>{loginOptions}</details>}
     {view?.sharing && <div className="cgp-section" aria-label="订阅余量">

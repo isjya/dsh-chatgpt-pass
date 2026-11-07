@@ -30,7 +30,7 @@ export class ChatGPTAdapter extends LlmAdapter {
     };
   }
   override async listModels(): Promise<readonly LlmResolvedModelInfo[]> {
-    const view = await this.session.view(); if (view.state !== 'connected') return [];
+    const view = await this.session.view(); if (view.state !== 'connected' || view.signingIn) return [];
     const { token, binding } = await this.session.access();
     const profile = await this.session.profile();
     const key = `${profile.method}:${profile.accountId ?? ''}:${binding.identity}:${binding.generation}`;
@@ -42,6 +42,7 @@ export class ChatGPTAdapter extends LlmAdapter {
     return structuredClone(await pending);
   }
   private async loadModels(token: string, binding: Binding, profile: Profile): Promise<LlmResolvedModelInfo[]> {
+    // Request failures belong to their caller, not the session's authorization alert.
     try {
       const codex = profile.method === 'codex';
       const url = codex ? `${CODEX_BASE}/models?client_version=${CODEX_CLIENT_VERSION}` : `${RESOURCE}/models`;
@@ -69,11 +70,11 @@ export class ChatGPTAdapter extends LlmAdapter {
           ...(efforts.length ? { reasoning: { efforts, ...(defaultEffort ? { defaultEffort } : {}) } } : {}) };
       });
       await this.session.access(binding); this.cache = { key: `${profile.method}:${profile.accountId ?? ''}:${binding.identity}:${binding.generation}`, models, expires: this.now() + 300000 }; return models;
-    } catch (e) { const error = safeError(e); this.session.report(error); throw error; }
+    } catch (e) { throw safeError(e); }
   }
   /** Codex-only usage windows; the SIWC route has no equivalent contract here. */
   async usage(): Promise<UsageView | undefined> {
-    const view = await this.session.view(); if (view.state !== 'connected') return undefined;
+    const view = await this.session.view(); if (view.state !== 'connected' || view.signingIn) return undefined;
     const profile = await this.session.profile(); if (profile.method !== 'codex') return undefined;
     const { token, binding } = await this.session.access();
     const key = `${profile.accountId ?? ''}:${binding.identity}:${binding.generation}`;
@@ -85,7 +86,7 @@ export class ChatGPTAdapter extends LlmAdapter {
       await this.session.access(binding);
       this.usageCache = { key, expires: this.now() + 30000, value };
       return structuredClone(value);
-    } catch (e) { const error = safeError(e); this.session.report(error); throw error; }
+    } catch (e) { throw safeError(e); }
   }
   override async resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo> {
     signal?.throwIfAborted();
@@ -137,7 +138,7 @@ export class ChatGPTAdapter extends LlmAdapter {
       if (signal.aborted) { signal.throwIfAborted(); }
       const error = e instanceof OpenAI.APIConnectionTimeoutError ? new ProviderError('TIMEOUT')
         : e instanceof OpenAI.APIError ? wireError(e.error, e.status, e.requestID ?? undefined) : safeError(e);
-      this.session.report(error); throw error;
+      throw error;
     } finally { clearTimeout(timer!); controller.abort(); }
   }
 }

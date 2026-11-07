@@ -22,28 +22,33 @@ import { Settings } from './src/client/index.tsx';
 const root = createRoot(document.getElementById('root'));
 const connected = {state:'connected', sharing:true, signingIn:false, method:'codex', account:'s***@example.com'};
 const quota = {limitReached:false, observedAt:Date.now(), windows:[{id:'5h',label:'5 小时窗口',usedPercent:16,resetAt:Date.now()+7200000},{id:'weekly',label:'每周窗口',usedPercent:42,resetAt:Date.now()+86400000*6}]};
-let session, usage, failUsage=false, failModels=false, sequence=0;
+let session, usage, failUsage=false, failModels=false, failView=false, usageFailures=0, sequence=0;
 window.calls=[];
+window.requests={models:0,usage:0};window.opened=[];window.desktop=false;
 const ok = value => Promise.resolve({ok:true,value});
 const api = {
-view:()=>ok({...session}),
-models:()=>failModels ? Promise.reject(new Error('synthetic')) : ok(['GPT-6.1-Sol','GPT-6.1 Terra','GPT-6-Astra','GPT-6-Sol','GPT-6-Luna','GPT-5.6-Sol','GPT-5.6-Terra','GPT-5.6-Luna'].map((name,i)=>({id:'synthetic-model-'+i,name}))),
-usage:()=>failUsage ? Promise.reject(new Error('synthetic')) : ok(usage),
+view:()=>failView ? Promise.reject(new Error('synthetic state read')) : ok({...session}),
+models:()=>{window.requests.models++;return failModels ? Promise.reject(new Error('synthetic')) : ok(['GPT-6.1-Sol','GPT-6.1 Terra','GPT-6-Astra','GPT-6-Sol','GPT-6-Luna','GPT-5.6-Sol','GPT-5.6-Terra','GPT-5.6-Luna'].map((name,i)=>({id:'synthetic-model-'+i,name})));},
+usage:()=>{window.requests.usage++;return failUsage || usageFailures-->0 ? Promise.reject(new Error('synthetic')) : ok(usage);},
 login:()=>{window.calls.push('siwc');session.signingIn=true;return ok({url:'https://auth.openai.com/oauth/authorize'});},
 loginCodex:()=>{window.calls.push('codex');session.signingIn=true;return ok({url:'https://auth.openai.com/oauth/authorize'});},
 consent:()=>{window.calls.push('consent');session.signingIn=true;return ok({url:'https://auth.openai.com/oauth/authorize'});},
 cancel:()=>{window.calls.push('cancel');session.signingIn=false;return ok();},
 logout:()=>{window.calls.push('logout');session={state:'disconnected',sharing:false,signingIn:false,method:'siwc'};return ok({remoteRevoked:true});}
 };
-window.open=()=>({closed:false,opener:null,location:{replace(url){window.authorizedUrl=url;}},close(){this.closed=true;}});
+window.open=url=>{window.opened.push(url);return window.desktop ? null : {closed:false,opener:null,location:{replace(url){window.authorizedUrl=url;}},close(){this.closed=true;}};};
 window.setFailures=(u,m)=>{failUsage=u;failModels=m;};
+window.setViewFailure=v=>{failView=v;};
+window.finishLogin=()=>{session={...connected};};
 window.scenario=name=>{
- session={...connected};usage=structuredClone(quota);failUsage=false;failModels=false;
+ session={...connected};usage=structuredClone(quota);failUsage=false;failModels=false;failView=false;usageFailures=0;window.requests={models:0,usage:0};window.opened=[];window.desktop=false;
  if(name==='disconnected')session={state:'disconnected',sharing:false,signingIn:false,method:'siwc'};
  if(name==='identity')session={...session,state:'identity_only',sharing:false,method:'siwc'};
  if(name==='siwc')session.method='siwc';
  if(name==='reauth')session={...session,state:'reauth_required',sharing:false};
  if(name==='unavailable')failUsage=true;
+ if(name==='transient')usageFailures=1;
+ if(name==='settling')session.signingIn=true;
  if(name==='empty')usage={...usage,windows:[]};
  if(name==='limits'){usage.windows[0].usedPercent=100;usage.windows[1].usedPercent=0;usage.limitReached=true;}
  if(name==='single')usage.windows=usage.windows.slice(0,1);
@@ -89,8 +94,33 @@ try {
     await click('使用 ChatGPT 登录'); await waitFor(`document.body.innerText.includes('请在浏览器中完成登录')`);
     assert.equal(await evaluate(`window.calls.at(-1)`),'siwc'); await click('取消登录');
     await scenario('disconnected'); await click('使用 Business 登录'); await waitFor(`window.calls.at(-1)==='codex'`); await click('取消登录');
+    await scenario('disconnected'); await evaluate(`window.desktop=true`); await click('使用 Business 登录');
+    await waitFor(`window.opened.some(u=>u.startsWith('https://auth.openai.com/'))`);
+    assert.deepEqual(await evaluate(`window.opened`),['about:blank','https://auth.openai.com/oauth/authorize']);
+    await click('取消登录'); checks.push('Desktop opens the official URL automatically when blank-window reservation is denied');
     await scenario('identity'); await click('启用订阅共享'); await waitFor(`window.calls.at(-1)==='consent'`); await click('取消登录');
     checks.push('both login routes, cancellation and subscription consent');
+    await scenario('settling');
+    assert.deepEqual(await evaluate(`window.requests`),{models:0,usage:0});
+    await evaluate(`window.finishLogin()`);
+    await waitFor(`document.querySelectorAll('[role="meter"]').length===2`);
+    assert.deepEqual(await evaluate(`window.requests`),{models:1,usage:1});
+    checks.push('model and quota requests start only after sign-in finishes, then load automatically');
+    await scenario('transient');
+    await waitFor(`document.querySelectorAll('[role="meter"]').length===2`);
+    assert.equal(await evaluate(`window.requests.usage`),2);
+    assert.equal(await evaluate(`!!document.querySelector('[role="alert"]')`),false);
+    checks.push('initial quota read retries once and recovers without a manual refresh or stale alert');
+    await scenario('transient'); await click('退出登录'); await sleep(1200);
+    assert.equal(await evaluate(`window.requests.usage`),1);
+    assert.equal(await evaluate(`document.querySelectorAll('[role="meter"]').length`),0);
+    checks.push('signing out cancels a scheduled quota retry');
+    await scenario('connected');
+    await evaluate(`window.setViewFailure(true)`);
+    await waitFor(`document.querySelector('[role="alert"]')?.innerText.includes('读取连接状态')`);
+    await evaluate(`window.setViewFailure(false)`);
+    await waitFor(`!document.querySelector('[role="alert"]')`);
+    checks.push('connection-state polling clears its own error after recovery');
     await scenario('reauth'); assert.equal(await evaluate(`[...document.querySelectorAll('button')].some(b=>b.innerText==='使用 Business 登录'&&!b.disabled)`),true);
     await scenario('connected'); await click('退出登录'); await waitFor(`document.body.innerText.includes('连接你的 ChatGPT 账号')`);
     assert.equal(await evaluate(`document.querySelectorAll('[role="meter"]').length`),0); checks.push('reauthentication and logout clear connected data');

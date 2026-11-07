@@ -16,7 +16,7 @@
 
 在 [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases) 下载 `dsh-chatgpt-pass-<版本>.tgz` 和对应 `.sha256` 文件，然后在 Harness 的插件管理器中添加本地安装包并启用。安装包已经构建，用户无需单独安装 Node.js、下载源码或运行构建脚本。
 
-当前安装包：[v0.2.15](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.15/dsh-chatgpt-pass-0.2.15.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
+当前安装包：[v0.2.16](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.16/dsh-chatgpt-pass-0.2.16.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
 
 使用 CLI 时，将命令中的文件名和 profile 替换为实际值：
 
