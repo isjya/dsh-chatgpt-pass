@@ -16,7 +16,7 @@
 
 在 [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases) 下载 `dsh-chatgpt-pass-<版本>.tgz` 和对应 `.sha256` 文件，然后在 Harness 的插件管理器中添加本地安装包并启用。安装包已经构建，用户无需单独安装 Node.js、下载源码或运行构建脚本。
 
-当前安装包：[v0.2.16](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.16/dsh-chatgpt-pass-0.2.16.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
+当前安装包：[v0.2.17](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.17/dsh-chatgpt-pass-0.2.17.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
 
 使用 CLI 时，将命令中的文件名和 profile 替换为实际值：
 
@@ -46,6 +46,8 @@ dsh plugin --profile <profile> add ./dsh-chatgpt-pass-<版本>.tgz
 在官方浏览器授权页完成登录后，回到 Harness，在聊天模型选择器中选择实际返回的模型。已连接时，可展开「切换连接方式」重新登录，或展开「可用模型」查看和刷新目录。
 
 Codex 连接可显示 5 小时与每周剩余额度及重置倒计时。官方连接没有此数据时显示空状态，不生成估算用量。当前不提供账号级历史 Token 分析。
+
+勾选「在侧边栏显示余量」后，主窗口左侧栏底部、账号／设置入口上方会显示紧凑余量卡片。选项默认关闭，保存在 Harness 配置中；卡片可见时约每分钟更新，也可手动刷新，侧边栏收起时隐藏。
 
 **Business 兼容路径不属于 OpenAI 文档支持的第三方接入方式。** 它使用 Codex 第一方 OAuth 客户端，可能受工作区策略、服务条款及接口变动影响。只使用你获准使用的账号与工作区。账号资格、模型和实际限额以授权结果为准。
 

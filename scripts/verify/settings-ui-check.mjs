@@ -19,7 +19,18 @@ const fixture = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { Settings } from './src/client/index.tsx';
+import { ClientState } from './src/client/state.ts';
+import { SidebarQuota } from './src/client/sidebar.tsx';
+import { SidebarPreference } from './src/client/preferences.ts';
 const root = createRoot(document.getElementById('root'));
+const sidebarRoot = createRoot(document.getElementById('quota'));
+let client, wide=true;
+let preferenceState={status:'loading',value:undefined,writable:false}, preferenceFailure=false;
+const preferenceListeners=new Set();
+const publishPreference=enabled=>{preferenceState={status:'ready',value:{showSidebarQuota:enabled},writable:true};for(const listener of preferenceListeners)listener();};
+const form={getSnapshot:()=>preferenceState,subscribe:listener=>{preferenceListeners.add(listener);return()=>preferenceListeners.delete(listener);},set:async(field,value)=>{if(preferenceFailure)return false;const response=await fetch('/preferences',{method:'POST',body:JSON.stringify(value)});publishPreference(await response.json());return true;}};
+void fetch('/preferences').then(r=>r.json()).then(publishPreference);
+window.setPreferenceFailure=value=>{preferenceFailure=value;};
 const connected = {state:'connected', sharing:true, signingIn:false, method:'codex', account:'s***@example.com'};
 const quota = {limitReached:false, observedAt:Date.now(), windows:[{id:'5h',label:'5 小时窗口',usedPercent:16,resetAt:Date.now()+7200000},{id:'weekly',label:'每周窗口',usedPercent:42,resetAt:Date.now()+86400000*6}]};
 let session, usage, failUsage=false, failModels=false, failView=false, usageFailures=0, sequence=0;
@@ -40,6 +51,10 @@ window.open=url=>{window.opened.push(url);return window.desktop ? null : {closed
 window.setFailures=(u,m)=>{failUsage=u;failModels=m;};
 window.setViewFailure=v=>{failView=v;};
 window.finishLogin=()=>{session={...connected};};
+window.showSettings=show=>root.render(show ? <Settings client={client} key={sequence}/> : null);
+window.sidebarWide=value=>{wide=value;sidebarRoot.render(<SidebarQuota client={client} wide={wide} key={sequence}/>);};
+window.refreshState=()=>client.refreshView();
+window.disconnect=()=>{session={state:'disconnected',sharing:false,signingIn:false,method:'siwc'};return client.refreshView();};
 window.scenario=name=>{
  session={...connected};usage=structuredClone(quota);failUsage=false;failModels=false;failView=false;usageFailures=0;window.requests={models:0,usage:0};window.opened=[];window.desktop=false;
  if(name==='disconnected')session={state:'disconnected',sharing:false,signingIn:false,method:'siwc'};
@@ -52,7 +67,9 @@ window.scenario=name=>{
  if(name==='empty')usage={...usage,windows:[]};
  if(name==='limits'){usage.windows[0].usedPercent=100;usage.windows[1].usedPercent=0;usage.limitReached=true;}
  if(name==='single')usage.windows=usage.windows.slice(0,1);
- root.render(<Settings key={++sequence} api={api}/>);
+ client?.dispose();client=new ClientState(api,new SidebarPreference(form));sequence++;
+ root.render(<Settings key={sequence} client={client}/>);
+ sidebarRoot.render(<SidebarQuota key={sequence} client={client} wide={wide}/>);
 };
 window.scenario('connected');
 `;
@@ -60,11 +77,18 @@ const bundle = await build({ stdin: { contents: fixture, resolveDir: root, loade
 const html = `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>订阅设置 · 界面验证</title><style>
 body{margin:0;padding:36px;background:#18181b;font-family:'Segoe UI','Microsoft YaHei',sans-serif;color:#f3f3f5;color-scheme:dark}
 .shell{max-width:800px;min-height:760px;margin:auto;background:#2b2b2e;border-radius:20px;overflow:hidden;--dsw-alias-bg-layer-2:#2b2b2e;--dsw-alias-label-primary:#f3f3f5;--dsw-alias-label-secondary:#aaaab1;--dsw-alias-border-l2:#ffffff1f;--dsw-alias-interactive-bg-hover:#ffffff0a;--dsw-alias-button-primary-fill:#ededf0;--dsw-alias-label-primary-foreground:#222225}
-.top{display:flex;justify-content:space-between;padding:22px 24px;font-size:20px}.top small{font-size:12px;color:#aaaab1}.body{display:grid;grid-template-columns:188px minmax(0,1fr)}nav{padding:12px}nav div{padding:12px;margin-bottom:4px;font-size:14px}nav .selected{background:#ffffff10;border-radius:10px}main{padding:12px 24px 24px;min-width:0}
+.top{display:flex;justify-content:space-between;padding:22px 24px;font-size:20px}.top small{font-size:12px;color:#aaaab1}.body{display:grid;grid-template-columns:188px minmax(0,1fr)}nav{padding:12px}nav>div{padding:12px;margin-bottom:4px;font-size:14px}nav .selected{background:#ffffff10;border-radius:10px}main{padding:12px 24px 24px;min-width:0}
 body.light{color-scheme:light;background:#ededf0;color:#222225}body.light .shell{background:#fff;--dsw-alias-bg-layer-2:#fff;--dsw-alias-label-primary:#222225;--dsw-alias-label-secondary:#686871;--dsw-alias-border-l2:#00000020;--dsw-alias-interactive-bg-hover:#00000007;--dsw-alias-button-primary-fill:#222225;--dsw-alias-label-primary-foreground:#fff}body.light nav .selected{background:#00000009}
 @media(max-width:600px){body{padding:8px}.body{display:block}nav{display:none}main{padding:12px 16px}.top{padding:16px}}
-</style><div class="shell"><div class="top">设置<small>打开配置文件　 ×</small></div><div class="body"><nav><div>通用设置</div><div>模型</div><div>内置插件</div><div>Agent 预设</div><div class="selected">ChatGPT 订阅</div></nav><main id="root"></main></div></div><script src="/fixture.js"></script></html>`;
-const server = createServer((req, res) => { res.setHeader('Content-Type', req.url === '/fixture.js' ? 'application/javascript' : 'text/html; charset=utf-8'); res.end(req.url === '/fixture.js' ? bundle.outputFiles[0].contents : html); });
+</style><div class="shell"><div class="top">设置<small>打开配置文件　 ×</small></div><div class="body"><nav><div>通用设置</div><div>模型</div><div>内置插件</div><div>Agent 预设</div><div class="selected">ChatGPT 订阅</div><aside id="quota" style="display:flex;padding:0;width:100%;margin-top:180px"></aside></nav><main id="root"></main></div></div><script src="/fixture.js"></script></html>`;
+let savedPreference = false;
+const server = createServer(async (req, res) => {
+  if (req.url === '/preferences') {
+    if (req.method === 'POST') { let body = ''; for await (const chunk of req) body += chunk; savedPreference = JSON.parse(body) === true; }
+    res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(savedPreference)); return;
+  }
+  res.setHeader('Content-Type', req.url === '/fixture.js' ? 'application/javascript' : 'text/html; charset=utf-8'); res.end(req.url === '/fixture.js' ? bundle.outputFiles[0].contents : html);
+});
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const checks = [];
 try {
@@ -133,7 +157,49 @@ try {
       await screenshot(resolve(output,`${name}-narrow.png`));
     }
     checks.push('dark/light themes and 390px layouts without horizontal clipping');
-    return { checks, screenshots: ['connected-dark.png','disconnected-dark.png','connected-light.png','connected-narrow.png','disconnected-narrow.png'] };
+    await send('Emulation.setDeviceMetricsOverride',{width:1200,height:1000,deviceScaleFactor:1,mobile:false});
+    await scenario('connected');
+    assert.equal(await evaluate(`!!document.querySelector('.cgp-sidebar')`),false);
+    await evaluate(`window.setPreferenceFailure(true);document.querySelector('input[type=checkbox]').click()`);
+    await waitFor(`document.querySelector('[role=alert]')?.innerText.includes('显示设置未保存')`);
+    assert.equal(await evaluate(`!!document.querySelector('.cgp-sidebar')`),false);
+    await evaluate(`window.setPreferenceFailure(false)`);
+    await evaluate(`document.querySelector('input[type=checkbox]').click()`);
+    await waitFor(`document.querySelectorAll('.cgp-sidebar [role=meter]').length===2`);
+    assert.equal(await evaluate(`window.requests.usage`),1);
+    assert.deepEqual(await evaluate(`[...document.querySelectorAll('.cgp-sidebar [role=meter]')].map(n=>Number(n.getAttribute('aria-valuenow')))`),[84,58]);
+    assert.ok(await evaluate(`document.querySelector('.cgp-sidebar').getBoundingClientRect().height<=150`));
+    await screenshot(resolve(output,'sidebar-light.png'));
+    await evaluate(`document.body.classList.remove('light')`); await screenshot(resolve(output,'sidebar-dark.png'));
+    checks.push('opt-in sidebar card shares quota reads, is at most 150px high, and supports both themes');
+    await send('Page.reload');
+    await waitFor(`document.querySelector('input[type=checkbox]')?.checked && document.querySelectorAll('.cgp-sidebar [role=meter]').length===2`);
+    assert.deepEqual(await evaluate(`Object.entries(localStorage)`),[]);
+    await evaluate(`window.showSettings(false)`);
+    assert.equal(await evaluate(`document.querySelectorAll('.cgp-sidebar [role=meter]').length`),2);
+    await click('刷新侧边栏余量'); await waitFor(`window.requests.usage===2`);
+    await evaluate(`window.setFailures(true,false)`); await click('刷新侧边栏余量');
+    await waitFor(`document.querySelector('.cgp-sidebar-note')?.innerText.includes('更新失败')`);
+    assert.equal(await evaluate(`document.querySelectorAll('.cgp-sidebar [role=meter]').length`),2);
+    await evaluate(`window.setFailures(false,false)`); await click('刷新侧边栏余量');
+    await waitFor(`!document.querySelector('.cgp-sidebar-note')?.innerText.includes('更新失败')`);
+    checks.push('display preference survives reload; sidebar keeps working with settings closed and marks stale data');
+    await evaluate(`window.sidebarWide(false)`); await sleep(100);
+    assert.equal(await evaluate(`!!document.querySelector('.cgp-sidebar')`),false);
+    const requestsBefore = await evaluate(`window.requests.usage`); await sleep(2200);
+    assert.equal(await evaluate(`window.requests.usage`),requestsBefore);
+    await evaluate(`window.sidebarWide(true)`); await waitFor(`document.querySelectorAll('.cgp-sidebar [role=meter]').length===2`);
+    await evaluate(`window.disconnect()`);
+    await waitFor(`document.querySelector('.cgp-sidebar')?.innerText.includes('连接 ChatGPT')`);
+    assert.equal(await evaluate(`document.querySelectorAll('.cgp-sidebar [role=meter]').length`),0);
+    for(const name of ['siwc','unavailable','empty','reauth']) {
+      await scenario(name); await sleep(name==='unavailable'?1200:100);
+      assert.equal(await evaluate(`document.querySelectorAll('.cgp-sidebar [role=meter]').length`),0);
+    }
+    await evaluate(`document.querySelector('input[type=checkbox]').click()`); await sleep(100);
+    assert.equal(await evaluate(`!!document.querySelector('.cgp-sidebar')`),false);
+    checks.push('collapse and disable remove the card; sign-out and unavailable connections never retain old quota');
+    return { checks, screenshots: ['connected-dark.png','disconnected-dark.png','connected-light.png','connected-narrow.png','disconnected-narrow.png','sidebar-light.png','sidebar-dark.png'] };
   });
   assert.deepEqual(report.consoleErrors,[]);
   await writeFile(resolve(output,'report.json'),JSON.stringify({at:new Date().toISOString(),kind:'synthetic component browser check',...report},null,2)+'\n');

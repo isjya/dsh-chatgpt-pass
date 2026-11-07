@@ -72,7 +72,7 @@ export async function withPage(url, fn) {
   }
 }
 
-const pageProbe = `(async () => {
+export const pageProbe = `(async () => {
   const trace = [];
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const waitFor = async (find, ms = 45000) => { const end = Date.now() + ms; while (Date.now() < end) { const v = find(); if (v) return v; await sleep(200); } return undefined; };

@@ -16,7 +16,7 @@ This is an independently maintained third-party plugin, not an official OpenAI o
 
 Download `dsh-chatgpt-pass-<version>.tgz` and its `.sha256` file from [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases). Add the local package in the Harness plugin manager and enable it. Release packages are prebuilt; users do not need to install Node.js separately, clone the source, or run build scripts.
 
-Current package: [v0.2.16](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.16/dsh-chatgpt-pass-0.2.16.tgz). If your plugin manager accepts download links, you can paste this `.tgz` URL directly. This project is distributed through GitHub Releases and is not currently published on npm.
+Current package: [v0.2.17](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.17/dsh-chatgpt-pass-0.2.17.tgz). If your plugin manager accepts download links, you can paste this `.tgz` URL directly. This project is distributed through GitHub Releases and is not currently published on npm.
 
 For CLI installation, replace the profile and filename with your actual values:
 
@@ -46,6 +46,8 @@ Open **Settings → ChatGPT 订阅 (ChatGPT Subscription)** and choose a connect
 Complete authorization on the official browser page, return to Harness, and choose an available model in the chat model picker. Once connected, expand **切换连接方式 (Switch connection method)** to sign in again, or **可用模型 (Available models)** to view and refresh the catalog.
 
 Codex connections can show the remaining quota and reset countdown for five-hour and weekly windows. When the official connection does not provide quota data, the page shows an empty state rather than estimating usage. Account-wide historical token analytics are not currently available.
+
+Enable **在侧边栏显示余量 (Show quota in sidebar)** to place a compact quota card at the bottom of the main window's left sidebar, above the account/settings entry. The option defaults to off and is saved in Harness configuration. The card updates about once a minute while visible, supports manual refresh, and hides when the sidebar collapses.
 
 **The Business compatibility route is not a third-party integration supported by OpenAI's documentation.** It uses the first-party Codex OAuth client and may be affected by workspace policies, terms of service, or interface changes. Use only accounts and workspaces you are authorized to access. Eligibility, models, and actual limits depend on the authorization result.
 

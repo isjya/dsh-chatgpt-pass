@@ -14,7 +14,7 @@ export const name = 'dsh-chatgpt-pass';
 export const inject = ['llm', 'credentials', 'authorization'];
 // A public volatile Config lets the host Models page join this entry's settings namespace.
 // Credentials and protocol options have no place in this schema.
-export const Config = z.object({}).volatile();
+export const Config = z.object({ showSidebarQuota: z.boolean().default(false) }).volatile();
 export function apply(ctx: Context): void {
   let adapter: ChatGPTAdapter;
   const session = new SessionManager(new Store(ctx.credentials), new OAuth(), () => {

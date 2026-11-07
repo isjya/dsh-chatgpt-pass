@@ -1,23 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
-import type { TypertClientRemote, TypertRemoteContribution, RemoteResult } from '@deepseek-ai/dsh-typert-protocol';
-import type { SessionView } from '../auth/session.js';
-import type { UsageView } from '../llm/usage.js';
+import type { SidebarFooterActionOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client';
+import type { TypertClientRemote, TypertRemoteContribution } from '@deepseek-ai/dsh-typert-protocol';
+import { type Api, value } from './api.js';
+import { ClientState, connectionKey } from './state.js';
+import { Refresh, SidebarQuota } from './sidebar.js';
+import { SidebarPreference, type DisplayPreferences } from './preferences.js';
 import { UsageCard } from './usage.js';
 import { styles } from './styles.js';
 
-interface Api {
-  view(): Promise<RemoteResult<SessionView>>;
-  login(): Promise<RemoteResult<{ url: string }>>;
-  loginCodex(): Promise<RemoteResult<{ url: string }>>;
-  consent(): Promise<RemoteResult<{ url: string }>>;
-  cancel(): Promise<RemoteResult<void>>;
-  models(): Promise<RemoteResult<{ id: string; name: string }[]>>;
-  usage(): Promise<RemoteResult<UsageView | null>>;
-  logout(): Promise<RemoteResult<{ remoteRevoked: boolean }>>;
-}
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespaceMap { chatgptProvider: Api }
 }
@@ -25,59 +18,40 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 export const contribution: TypertRemoteContribution = { package: 'dsh-chatgpt-pass', descriptors: ['view', 'login', 'loginCodex', 'consent', 'cancel', 'models', 'usage', 'logout'].map(method => ({
   id: `dsh-chatgpt-pass:chatgptProvider/${method}`, service: 'chatgptProvider', namespace: 'chatgptProvider', method, invocation: { kind: 'direct' as const }, parameters: [], result: { mode: 'src-json' as const },
 })) };
-async function value<T>(request: Promise<RemoteResult<T>>): Promise<T> {
-  const result = await request; if (!result.ok) throw new Error(result.error.message); return result.value;
-}
 function officialLink(raw: string): string {
   const u = new URL(raw); if (u.origin !== 'https://auth.openai.com' || !['/api/accounts/authorize', '/oauth/authorize'].includes(u.pathname)) throw new Error('授权地址未通过验证。'); return u.href;
 }
 const labels = { disconnected: '未连接', connected: '已连接', identity_only: '待开启订阅共享', reauth_required: '需要重新登录' };
 const Chevron = () => <svg className="cgp-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;
-const Refresh = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 18 17" /></svg>;
-export function Settings({ api }: { api: Api }) {
-  const [view, setView] = useState<SessionView>(), [error, setError] = useState(''), [notice, setNotice] = useState('');
-  const [stateError, setStateError] = useState('');
+export function Settings({ client }: { client: ClientState }) {
+  const api = client.api;
+  const { view, stateError, usage, usageError, usageLoading, now } = useSyncExternalStore(client.subscribe, client.getSnapshot);
+  const preference = useSyncExternalStore(client.sidebar.subscribe, client.sidebar.getSnapshot);
+  const [savingPreference, setSavingPreference] = useState(false);
+  const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [models, setModels] = useState<{ id: string; name: string }[]>([]), [link, setLink] = useState(''), [busy, setBusy] = useState(false);
-  const [usage, setUsage] = useState<UsageView | null>(null);
-  const [modelsLoading, setModelsLoading] = useState(false), [usageLoading, setUsageLoading] = useState(false);
-  const [modelsError, setModelsError] = useState(''), [usageError, setUsageError] = useState('');
+  const [modelsLoading, setModelsLoading] = useState(false), [modelsError, setModelsError] = useState('');
   const popup = useRef<Window | null>(null), waiting = useRef(false);
   // Credentials can be committed before the authorization flow rotates its signal.
   // Wait for that flow to finish before starting account-bound reads.
-  const connection = view?.sharing && !view.signingIn ? `${view.method}:${view.account ?? ''}` : '';
+  const connection = connectionKey(view);
   const currentConnection = useRef(connection); currentConnection.current = connection;
   useEffect(() => {
-    let disposed = false, reading = false;
     const cancelOwned = () => { if (waiting.current) { waiting.current = false; void value(api.cancel()).catch(() => {}); } };
-    const refresh = () => {
-      if (waiting.current && popup.current?.closed) cancelOwned();
-      if (reading) return;
-      reading = true;
-      void value(api.view()).then(v => { if (!disposed) { setView(v); setStateError(''); if (!v.signingIn) { waiting.current = false; popup.current = null; setLink(''); } } }, () => { if (!disposed) setStateError('暂时无法读取连接状态。'); }).finally(() => { reading = false; });
-    };
     window.addEventListener('pagehide', cancelOwned);
-    refresh(); const timer = setInterval(refresh, 2000); return () => { disposed = true; clearInterval(timer); window.removeEventListener('pagehide', cancelOwned); cancelOwned(); };
+    const timer = setInterval(() => { if (waiting.current && popup.current?.closed) cancelOwned(); }, 2000);
+    return () => { clearInterval(timer); window.removeEventListener('pagehide', cancelOwned); cancelOwned(); };
   }, [api]);
   useEffect(() => {
+    if (view && !view.signingIn) { waiting.current = false; popup.current = null; setLink(''); }
+  }, [view]);
+  useEffect(() => {
     let disposed = false;
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    setModels([]); setUsage(null); setModelsError(''); setUsageError('');
-    setModelsLoading(Boolean(connection)); setUsageLoading(Boolean(connection && view?.method === 'codex'));
+    setModels([]); setModelsError(''); setModelsLoading(Boolean(connection));
     if (connection) {
       void value(api.models()).then(m => { if (!disposed) setModels(m); }, () => { if (!disposed) setModelsError('模型暂时无法加载，请重试。'); }).finally(() => { if (!disposed) setModelsLoading(false); });
-      if (view?.method === 'codex') {
-        const loadUsage = async (retry: boolean) => {
-          let retrying = false;
-          try { const next = await value(api.usage()); if (!disposed) { setUsage(next); setUsageError(''); } }
-          catch {
-            if (!disposed && retry) { retrying = true; retryTimer = setTimeout(() => void loadUsage(false), 1000); }
-            else if (!disposed) setUsageError('用量暂时无法更新，请重试。');
-          } finally { if (!disposed && !retrying) setUsageLoading(false); }
-        };
-        void loadUsage(true);
-      }
     }
-    return () => { disposed = true; clearTimeout(retryTimer); };
+    return () => { disposed = true; };
   }, [api, connection]);
   const refreshModels = async () => {
     const key = connection; setModelsLoading(true); setModelsError('');
@@ -85,17 +59,11 @@ export function Settings({ api }: { api: Api }) {
     catch { if (currentConnection.current === key) setModelsError('模型暂时无法加载，请重试。'); }
     finally { if (currentConnection.current === key) setModelsLoading(false); }
   };
-  const refreshUsage = async () => {
-    const key = connection; setUsageLoading(true); setUsageError('');
-    try { const next = await value(api.usage()); if (currentConnection.current === key) setUsage(next); }
-    catch { if (currentConnection.current === key) setUsageError('用量暂时无法更新，请重试。'); }
-    finally { if (currentConnection.current === key) setUsageLoading(false); }
-  };
   const run = async (f: () => Promise<void>) => {
     setError(''); setNotice(''); setBusy(true);
     try {
       await f();
-      try { setView(await value(api.view())); setStateError(''); } catch { setStateError('暂时无法读取连接状态。'); }
+      await client.refreshView();
     } catch (e) { setError(e instanceof Error ? e.message : '操作未完成，请重试。'); }
     finally { setBusy(false); }
   };
@@ -103,6 +71,7 @@ export function Settings({ api }: { api: Api }) {
     // Reserve a browser window during the click so normal popup rules allow the official page.
     const opened = window.open('about:blank', '_blank'); popup.current = opened;
     try {
+      client.invalidate();
       const result = await value(codex ? api.loginCodex() : consent ? api.consent() : api.login());
       const url = officialLink(result.url); waiting.current = true; setLink(url);
       if (opened) { opened.opener = null; opened.location.replace(url); }
@@ -113,6 +82,12 @@ export function Settings({ api }: { api: Api }) {
     catch (e) { opened?.close(); waiting.current = false; popup.current = null; throw e; }
   });
   const disabled = busy || !view || view.signingIn;
+  const setSidebarEnabled = async (enabled: boolean) => {
+    setSavingPreference(true); setError('');
+    try { await client.sidebar.set(enabled); }
+    catch { setError('显示设置未保存，请重试。'); }
+    finally { setSavingPreference(false); }
+  };
   const loginOptions = <div className="cgp-grid">
     <div className="cgp-card cgp-login"><div><div className="cgp-login-heading"><strong>ChatGPT 登录</strong><span className="cgp-tag">官方授权</span></div><p>推荐 Plus / Pro 会员</p></div><button className="cgp-primary" disabled={disabled} onClick={() => void login()}>使用 ChatGPT 登录</button></div>
     <div className="cgp-card cgp-login"><div><div className="cgp-login-heading"><strong>Business 登录</strong><span className="cgp-tag" title="Codex 兼容连接，非官方路径">兼容 · 实验性</span></div><p>推荐 Business 会员</p></div><button disabled={disabled} onClick={() => void login(false, true)}>使用 Business 登录</button></div>
@@ -126,7 +101,7 @@ export function Settings({ api }: { api: Api }) {
         <div className="cgp-identity"><p className="cgp-email">{view?.account ?? (view ? '连接你的 ChatGPT 账号' : '正在读取账号…')}</p><p className="cgp-path">{view?.state !== 'disconnected' && view ? (view.method === 'codex' ? 'Business 连接 · 实验性' : 'ChatGPT 官方连接') : '选择适合你的订阅连接方式'}</p></div>
         <div className="cgp-account-actions">
           <span className="cgp-status" data-connected={view?.state === 'connected'} role="status"><span className="cgp-dot" />{view?.signingIn ? '等待授权' : view ? labels[view.state] : '读取中'}</span>
-          {view && view.state !== 'disconnected' && <button className="cgp-quiet" disabled={disabled} onClick={() => void run(async () => { const r = await value(api.logout()); setLink(''); setModels([]); setUsage(null); setNotice(r.remoteRevoked ? '已退出登录。' : '已退出本地登录；可在 ChatGPT 设置中管理远端连接。'); })}>退出登录</button>}
+          {view && view.state !== 'disconnected' && <button className="cgp-quiet" disabled={disabled} onClick={() => void run(async () => { client.invalidate(); const r = await value(api.logout()); setLink(''); setModels([]); setNotice(r.remoteRevoked ? '已退出登录。' : '已退出本地登录；可在 ChatGPT 设置中管理远端连接。'); })}>退出登录</button>}
         </div>
       </div>
     </div>
@@ -135,10 +110,11 @@ export function Settings({ api }: { api: Api }) {
     {(error || stateError || view?.error) && <div className="cgp-feedback" role="alert">{error || stateError || view?.error?.message}{view?.error?.requestId && <small>（请求编号：{view.error.requestId}）</small>}{view?.error?.code === 'AUTH_TEMPORARY' && <button disabled={disabled} onClick={() => void run(refreshModels)}>恢复连接</button>}</div>}
     {notice && <div className="cgp-feedback" role="status">{notice}</div>}
     {view && (view.state === 'disconnected' || view.state === 'reauth_required') ? <div className="cgp-section">{loginOptions}</div> : view && <details className="cgp-switch"><summary>切换连接方式<Chevron /></summary>{loginOptions}</details>}
+    <label className="cgp-sidebar-option"><span><strong>在侧边栏显示余量</strong><span>在主窗口左下角显示订阅剩余额度</span></span><input type="checkbox" checked={preference.value?.showSidebarQuota ?? false} disabled={preference.status !== 'ready' || !preference.writable || savingPreference} onChange={event => void setSidebarEnabled(event.target.checked)} /></label>
     {view?.sharing && <div className="cgp-section" aria-label="订阅余量">
-      <div className="cgp-section-head"><h3>订阅余量</h3>{view.method === 'codex' && <button className="cgp-quiet" aria-label="刷新用量" disabled={disabled || usageLoading} onClick={() => void refreshUsage()}><Refresh />{usageLoading ? '更新中…' : '刷新'}</button>}</div>
+      <div className="cgp-section-head"><h3>订阅余量</h3>{view.method === 'codex' && <button className="cgp-quiet" aria-label="刷新用量" disabled={disabled || usageLoading} onClick={() => void client.refreshUsage()}><Refresh />{usageLoading ? '更新中…' : '刷新'}</button>}</div>
       {view.method === 'codex' ? <>
-        {usage?.windows.length ? <div className="cgp-card cgp-usage-panel">{usage.windows.map(w => <UsageCard key={w.id} window={w} />)}</div> : <div className="cgp-card cgp-empty" role="status">{usageLoading ? '正在获取订阅余量…' : '暂时无法获取余量'}</div>}
+        {usage?.windows.length ? <div className="cgp-card cgp-usage-panel">{usage.windows.map(w => <UsageCard key={w.id} window={w} now={now} />)}</div> : <div className="cgp-card cgp-empty" role="status">{usageLoading ? '正在获取订阅余量…' : '暂时无法获取余量'}</div>}
         {usageError && <p className="cgp-feedback" role="alert">{usageError}</p>}
         {usage?.limitReached && <p className="cgp-feedback" role="alert">当前订阅额度已达上限，请等待重置。</p>}
         {usage && <div className="cgp-updated"><span>更新于 {new Date(usage.observedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><span>Codex 用量 · 仅供参考</span></div>}
@@ -152,7 +128,7 @@ export function Settings({ api }: { api: Api }) {
     <footer className="cgp-footer"><a href="https://chatgpt.com/settings/usage" target="_blank" rel="noreferrer noopener">在 ChatGPT 管理订阅 ↗</a></footer>
   </section>;
 }
-export const inject = ['slots', 'remote'];
+export const inject = ['slots', 'remote', 'configForms'];
 export async function apply(ctx: Context): Promise<void> {
   const remote = ctx.get('remote') as TypertClientRemote;
   if (!remote) throw new Error('Harness Remote 服务尚未就绪。');
@@ -161,6 +137,9 @@ export async function apply(ctx: Context): Promise<void> {
   // rather than resolving a service later from an unscoped React render.
   ctx.inject(['remote.chatgptProvider'], scope => {
     const api = (scope.get('remote') as TypertClientRemote).chatgptProvider;
-    scope.slots.inject('settings.section', () => scope.slots.register({ name: 'settings.section', id: 'chatgpt-subscription', order: 45, label: () => 'ChatGPT 订阅' }, () => <Settings api={api} />));
+    const client = new ClientState(api, new SidebarPreference(scope.configForms.get<DisplayPreferences>('dsh-chatgpt-pass')));
+    scope.effect(() => () => client.dispose());
+    scope.slots.inject('settings.section', () => scope.slots.register({ name: 'settings.section', id: 'chatgpt-subscription', order: 45, label: () => 'ChatGPT 订阅' }, () => <Settings client={client} />));
+    scope.slots.inject('sidebar.footer.action', () => scope.slots.register({ name: 'sidebar.footer.action', id: 'chatgpt-subscription-quota', order: 45 }, ({ wide }: SidebarFooterActionOwnerProps) => <SidebarQuota client={client} wide={wide} />));
   });
 }

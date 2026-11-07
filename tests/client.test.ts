@@ -6,11 +6,11 @@ import { runInNewContext } from 'node:vm';
 
 it('P5 client page resolves its Remote namespace in an injected scope before React render', async () => {
   const api = { view: async () => ({ ok: true, value: { state: 'disconnected', sharing: false, signingIn: false } }), models: async () => ({ ok: true, value: [] }) };
-  let component: (() => any) | undefined;
+  const components = new Map<string, (props?: any) => any>();
   class Slots extends Service {
     constructor(ctx: Context) { super(ctx, 'slots'); }
     inject(_name: string, fn: () => void) { fn(); }
-    register(_options: unknown, value: () => any) { component = value; return () => {}; }
+    register(options: { name: string }, value: (props?: any) => any) { components.set(options.name, value); return () => {}; }
   }
   class Namespace extends Service {
     constructor(ctx: Context) { super(ctx, 'remote.chatgptProvider', true); return Object.assign(this, api); }
@@ -20,16 +20,27 @@ it('P5 client page resolves its Remote namespace in an injected scope before Rea
     get chatgptProvider() { return this.ctx.get('remote.chatgptProvider'); }
     async $mount() { await this.ctx.root.plugin(Namespace); return async () => {}; }
   }
+  class ConfigForms extends Service {
+    constructor(ctx: Context) { super(ctx, 'configForms'); }
+    get(namespace: string) {
+      expect(namespace).toBe('dsh-chatgpt-pass');
+      return { getSnapshot: () => ({ status: 'ready', value: { showSidebarQuota: false }, writable: true }), subscribe: () => () => {}, set: async () => true };
+    }
+  }
   const require = createRequire(import.meta.url); let client: any;
   const source = await readFile('lib/client.js', 'utf8');
-  runInNewContext(source, { window: { __ModuleLoader__: { load: ({ factory }: any) => { client = factory(require); } } } });
+  runInNewContext(source, { setInterval, clearInterval, setTimeout, clearTimeout, window: { __ModuleLoader__: { load: ({ factory }: any) => { client = factory(require); } } } });
   const ctx = new Context();
   try {
-    await ctx.plugin(Slots); await ctx.plugin(Remote); await ctx.plugin(client);
-    expect(component).toBeTypeOf('function');
+    await ctx.plugin(Slots); await ctx.plugin(Remote); await ctx.plugin(ConfigForms); await ctx.plugin(client);
+    expect(components.get('settings.section')).toBeTypeOf('function');
     // Invoking the outer render must not attempt a disallowed Cordis service lookup.
-    const element = component!(); expect(element.props.api).toBeTruthy();
-    expect(await element.props.api.view()).toMatchObject({ value: { state: 'disconnected' } });
+    const element = components.get('settings.section')!(); expect(element.props.client.api).toBeTruthy();
+    expect(await element.props.client.api.view()).toMatchObject({ value: { state: 'disconnected' } });
+    const sidebar = components.get('sidebar.footer.action')!({ wide: true });
+    expect(sidebar.props.client).toBe(element.props.client);
+    expect(sidebar.props.wide).toBe(true);
+    expect(element.props.client.sidebar.getSnapshot().value.showSidebarQuota).toBe(false);
     // The two-path settings surface must expose both entries and keep the Business route labelled experimental.
     expect(client.contribution.descriptors.map((d: any) => d.method)).toContain('loginCodex');
     expect(client.contribution.descriptors.map((d: any) => d.method)).toContain('usage');

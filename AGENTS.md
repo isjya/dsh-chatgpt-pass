@@ -11,3 +11,4 @@ This repository contains the independent dsh-chatgpt-pass Harness bundle. Read R
 - Source lives in src/, automated tests in tests/, optional integration checks in scripts/verify/, and maintained documentation in docs/. Keep machine-specific records and historical working notes under ignored .local/ or .validation/ directories.
 - When .codegraph/ exists, use CodeGraph before ordinary code search; otherwise use rg. Do not create an index implicitly.
 - Use the codex/ prefix for new work branches. Do not push, rewrite history or publish releases without user authorization.
+- Use English Conventional Commit messages that describe the actual change, such as `fix: correct Business login, quota loading, and stale error messages`. Choose the appropriate type, including `fix`, `feat`, `docs`, `refactor`, or `chore`.

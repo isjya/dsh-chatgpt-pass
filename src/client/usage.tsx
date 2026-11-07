@@ -11,13 +11,13 @@ export function resetCountdown(resetAt: number, now: number): string {
 }
 
 /** The bar measures remaining quota; an absent window is never represented as zero. */
-export function UsageCard({ window: w, now = Date.now() }: { window: UsageWindow; now?: number }) {
+export function UsageCard({ window: w, now = Date.now(), compact = false }: { window: UsageWindow; now?: number; compact?: boolean }) {
   const remaining = Math.round((100 - w.usedPercent) * 10) / 10;
   const label = w.id === '5h' ? '5 小时限额' : '每周限额';
   return <div className="cgp-usage-window">
-    <h3 className="cgp-usage-label">{label}</h3>
+    {!compact && <h3 className="cgp-usage-label">{label}</h3>}
     <div className="cgp-usage-meta">
-      <span className="cgp-reset">{w.resetAt ? <time dateTime={new Date(w.resetAt).toISOString()} title={new Date(w.resetAt).toLocaleString()}>{resetCountdown(w.resetAt, now)}</time> : '重置时间暂未提供'}</span>
+      {compact ? <span title={w.resetAt ? resetCountdown(w.resetAt, now) : '重置时间暂未提供'}>{w.id === '5h' ? '5 小时' : '每周'}</span> : <span className="cgp-reset">{w.resetAt ? <time dateTime={new Date(w.resetAt).toISOString()} title={new Date(w.resetAt).toLocaleString()}>{resetCountdown(w.resetAt, now)}</time> : '重置时间暂未提供'}</span>}
       <span className="cgp-remaining">剩余 {remaining}%</span>
     </div>
     <div className="cgp-meter" data-tone={remaining === 0 ? 'empty' : remaining <= 20 ? 'warning' : 'normal'} role="meter" aria-label={`${label}剩余额度`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={remaining} aria-valuetext={`剩余 ${remaining}%`}>
