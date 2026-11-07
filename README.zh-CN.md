@@ -26,8 +26,6 @@ dsh plugin --profile <profile> add ./dsh-chatgpt-pass-<版本>.tgz
 
 完整安装、升级、卸载和兼容性说明见 [安装指南](docs/INSTALL.md)。
 
-从本仓库 v0.2.14 及更早版本升级：先移除旧的 `dsh-chatgpt-provider` 插件，再安装新包并重启 Harness。迁移时不要点击「退出登录」，已有登录记录和模型标识会保留；不要同时启用新旧两个包。
-
 ## 界面示例
 
 ![ChatGPT 订阅设置页](docs/assets/subscription-dark.png)

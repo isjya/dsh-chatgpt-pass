@@ -26,8 +26,6 @@ dsh plugin --profile <profile> add ./dsh-chatgpt-pass-<version>.tgz
 
 See the [installation guide (Chinese)](docs/INSTALL.md) for installation, upgrades, removal, and compatibility details.
 
-Upgrading from this repository's v0.2.14 or earlier: remove the old `dsh-chatgpt-provider` plugin without signing out, install the new package, and restart Harness. Account credentials and model identifiers are preserved. Avoid enabling both packages at the same time.
-
 ## Preview
 
 ![ChatGPT subscription settings](docs/assets/subscription-dark.png)
