@@ -6,6 +6,8 @@ import { SessionManager, type SessionView } from './auth/session.js';
 import { ChatGPTAdapter } from './llm/adapter.js';
 import { safeError, ProviderError } from './errors.js';
 import type { UsageView } from './llm/usage.js';
+import type { ReconnectResult } from './llm/recovery.js';
+import { parseReconnectOptions, type ReconnectOptions } from './remote.js';
 
 export class ProviderService extends TypertRemoteService {
   constructor(ctx: Context, readonly session: SessionManager, readonly adapter: ChatGPTAdapter) { super(ctx, 'chatgptProvider'); }
@@ -33,6 +35,14 @@ export class ProviderService extends TypertRemoteService {
   }
   @Remote async usage(): Promise<UsageView | null> {
     try { return (await this.adapter.usage()) ?? null; } catch (e) { throw safeError(e); }
+  }
+  @Remote async reconnect(options: ReconnectOptions): Promise<ReconnectResult> {
+    let parsed: ReconnectOptions;
+    try { parsed = parseReconnectOptions(options); } catch { throw new ProviderError('PROTOCOL'); }
+    if ((await this.session.view()).signingIn) throw new ProviderError('AUTH_BUSY');
+    const result = this.adapter.reconnect(parsed.confirmed);
+    if (result.status === 'reconnected') this.ctx.emit('llm/models-updated', 'chatgpt-subscription');
+    return result;
   }
   @Remote async logout(): Promise<{ remoteRevoked: boolean }> { this.ctx.authorization.cancel(KEY); return this.session.logout(); }
 }

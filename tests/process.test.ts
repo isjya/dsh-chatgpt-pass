@@ -37,12 +37,16 @@ it('AUTH-07 two actual processes share host atomic record lock and rotate once',
     expect(output).toEqual(['REFRESH_OK', 'REFRESH_OK']); expect(calls).toBe(1);
   } finally { server.closeAllConnections(); await new Promise<void>(r => server.close(() => r())); await ctx.fiber.dispose(); }
 });
-it('LLM-10 actual fresh process reconstructs persisted phase and encrypted reasoning without upstream response ID', async () => {
+it.each(['fixture-model', 'fixture-next-model'])('LLM-10 fresh process reconstructs persisted history for %s without upstream response ID', async model => {
   const out = [{ type: 'reasoning', id: 'rs', summary: [], encrypted_content: 'synthetic_opaque' }, message('persisted')];
   const assembler = new BlockAssembler(); for (const c of await collect(translate(events(scripted(out)), 'fixture-model', 'identity', toolMap(), AbortSignal.timeout(5000)))) assembler.push(c);
   const m = createAssistantMessage({ content: assembler.blocks(), source: { provider: PROVIDER, model: 'fixture-model', replayState: assembler.replayState } });
   const dir = await mkdtemp(resolve('.validation/replay-')); const path = resolve(dir, 'session.json');
-  await writeFile(path, JSON.stringify({ identity: 'identity', options: { provider: PROVIDER, model: 'fixture-model', messages: [m, { role: 'user', content: [{ type: 'text', text: 'continue' }] }] } }));
+  await writeFile(path, JSON.stringify({ identity: 'identity', options: { provider: PROVIDER, model, messages: [m, { role: 'user', content: [{ type: 'text', text: 'continue' }] }] } }));
   const request = JSON.parse(await child(['replay', path]));
-  expect(request.input[0]).toMatchObject({ type: 'reasoning', encrypted_content: 'synthetic_opaque' }); expect(request.input[1].phase).toBe('final_answer'); expect(request.previous_response_id).toBeUndefined();
+  expect(request.model).toBe(model);
+  if (model === 'fixture-model') expect(request.input[0]).toMatchObject({ type: 'reasoning', encrypted_content: 'synthetic_opaque' });
+  else { expect(request.input.some((i: any) => i.type === 'reasoning')).toBe(false); expect(JSON.stringify(request)).not.toContain('synthetic_opaque'); }
+  expect(request.input.find((i: any) => i.type === 'message')).toMatchObject({ phase: 'final_answer', content: [{ type: 'output_text', text: 'persisted' }] });
+  expect(request.previous_response_id).toBeUndefined();
 });

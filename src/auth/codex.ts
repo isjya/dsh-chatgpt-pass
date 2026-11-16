@@ -6,10 +6,12 @@ import { ISSUER, json, type Fetch } from './oauth.js';
 import type { TokenSet } from './store.js';
 
 // Codex ("legacy") sign-in uses OpenAI's first-party Codex OAuth client and the
-// Codex backend. It exists for ChatGPT Business/Team workspaces whose policy
-// rejects third-party SIWC agents. This is not an official third-party path.
+// Codex backend. Eligible Plus/Pro and Business/Team accounts can use this
+// connection, including its quota endpoint. This is not an official third-party path.
 export const CODEX_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
 export const CODEX_BASE = 'https://chatgpt.com/backend-api/codex';
+// The upstream Codex client queries account quota outside the inference base.
+export const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage';
 export const CODEX_ORIGINATOR = 'dsh-chatgpt-pass';
 // The catalog filters models by this version (newer models declare minimal_client_version).
 // The Codex backend accepts a plain semver; older clients see a reduced catalog.

@@ -39,6 +39,7 @@ const quota = {limitReached:false, observedAt:Date.now(), windows:[{id:'5h',labe
 let session, usage, failUsage=false, failModels=false, failView=false, usageFailures=0, sequence=0;
 window.calls=[];
 window.requests={models:0,usage:0};window.opened=[];window.desktop=false;
+window.activeRequests=0;
 const ok = value => Promise.resolve({ok:true,value});
 const api = {
 view:()=>failView ? Promise.reject(new Error('synthetic state read')) : ok({...session}),
@@ -48,6 +49,7 @@ login:()=>{window.calls.push('siwc');session.signingIn=true;return ok({url:'http
 loginCodex:()=>{window.calls.push('codex');session.signingIn=true;return ok({url:'https://auth.openai.com/oauth/authorize'});},
 consent:()=>{window.calls.push('consent');session.signingIn=true;return ok({url:'https://auth.openai.com/oauth/authorize'});},
 cancel:()=>{window.calls.push('cancel');session.signingIn=false;return ok();},
+reconnect:({confirmed})=>{window.calls.push(confirmed?'reconnect-confirm':'reconnect-check');const activeRequests=window.activeRequests;if(activeRequests&&!confirmed)return ok({status:'confirmation_required',activeRequests});window.activeRequests=0;return ok({status:'reconnected',activeRequests});},
 logout:()=>{window.calls.push('logout');session={state:'disconnected',sharing:false,signingIn:false,method:'siwc'};return ok({remoteRevoked:true});}
 };
 window.open=url=>{window.opened.push(url);return window.desktop ? null : {closed:false,opener:null,location:{replace(url){window.authorizedUrl=url;}},close(){this.closed=true;}};};
@@ -59,7 +61,7 @@ window.sidebarWide=value=>{wide=value;sidebarRoot.render(<SidebarQuota client={c
 window.refreshState=()=>client.refreshView();
 window.disconnect=()=>{session={state:'disconnected',sharing:false,signingIn:false,method:'siwc'};return client.refreshView();};
 window.scenario=name=>{
- session={...connected};usage=structuredClone(quota);failUsage=false;failModels=false;failView=false;usageFailures=0;window.requests={models:0,usage:0};window.opened=[];window.desktop=false;
+ session={...connected};usage=structuredClone(quota);failUsage=false;failModels=false;failView=false;usageFailures=0;window.requests={models:0,usage:0};window.opened=[];window.desktop=false;window.activeRequests=0;
  if(name==='disconnected')session={state:'disconnected',sharing:false,signingIn:false,method:'siwc'};
  if(name==='identity')session={...session,state:'identity_only',sharing:false,method:'siwc'};
  if(name==='siwc')session.method='siwc';
@@ -105,6 +107,30 @@ try {
     assert.equal(await evaluate(`document.querySelector('.cgp-models').open`), false);
     assert.ok(await evaluate(`document.querySelector('.cgp-usage-panel').getBoundingClientRect().height<=170`));
     assert.equal(await evaluate(`document.querySelector('.cgp-meter-fill').style.width`),'84%');
+    await evaluate(`window.activeRequests=2`); await click('重新连接');
+    await waitFor(`document.querySelector('dialog')?.open`);
+    assert.equal(await evaluate(`document.querySelector('dialog').innerText.includes('当前 2 个请求')`),true);
+    assert.equal(await evaluate(`document.querySelector('dialog').innerText.includes('其他聊天')`),true);
+    assert.equal(await evaluate(`document.activeElement.innerText`),'取消');
+    assert.equal(await evaluate(`window.activeRequests`),2);
+    await screenshot(resolve(output,'reconnect-confirmation-dark.png'));
+    await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    await waitFor(`!document.querySelector('dialog')`);
+    assert.equal(await evaluate(`window.activeRequests`),2);
+    await click('重新连接'); await waitFor(`document.querySelector('dialog')?.open`);
+    await click('取消'); await waitFor(`!document.querySelector('dialog')`);
+    assert.equal(await evaluate(`window.activeRequests`),2);
+    await click('重新连接'); await waitFor(`document.querySelector('dialog')?.open`);
+    await click('中止请求并重连');
+    await waitFor(`document.body.innerText.includes('连接已重置')&&!document.querySelector('dialog')`);
+    assert.equal(await evaluate(`window.activeRequests`),0);
+    assert.equal(await evaluate(`window.calls.filter(c=>c==='reconnect-confirm').length`),1);
+    assert.equal(await evaluate(`document.querySelector('.cgp-email').innerText`),'s***@example.com');
+    await click('重新连接'); await waitFor(`!document.querySelector('dialog')&&document.body.innerText.includes('连接已重置')`);
+    assert.equal(await evaluate(`window.calls.filter(c=>c==='reconnect-confirm').length`),1);
+    checks.push('reconnect warns before interrupting parallel chats; cancel and Escape preserve requests; confirmation runs once; idle reconnect has no modal');
+    await scenario('connected');
     await screenshot(resolve(output,'connected-dark.png')); checks.push('connected: two compact quota bars, panel height <=170px, models collapsed');
     await evaluate(`document.querySelector('.cgp-models').open=true`);
     assert.equal(await evaluate(`document.querySelectorAll('.cgp-model-list li').length`),8);
@@ -113,6 +139,28 @@ try {
     assert.equal(await evaluate(`document.querySelectorAll('[role="meter"]').length`),2); checks.push('refresh failure retains last observed quota');
     for(const name of ['unavailable','empty','siwc']) { await scenario(name); assert.equal(await evaluate(`document.querySelectorAll('[role="meter"]').length`),0); }
     checks.push('unavailable, empty and official connection never fabricate quota');
+    await scenario('siwc');
+    const callsBeforeSwitch = await evaluate(`window.calls.length`);
+    await click('启用余量查询'); await waitFor(`document.querySelector('dialog')?.open`);
+    assert.equal(await evaluate(`document.querySelector('dialog').innerText.includes('Plus / Pro / Business')`),true);
+    assert.equal(await evaluate(`document.querySelector('dialog').innerText.includes('替换当前官方连接')`),true);
+    assert.equal(await evaluate(`window.calls.length`),callsBeforeSwitch);
+    assert.equal(await evaluate(`document.activeElement.innerText`),'取消');
+    await screenshot(resolve(output,'plus-pro-quota-switch.png'));
+    await click('取消'); await waitFor(`!document.querySelector('dialog')`);
+    assert.equal(await evaluate(`window.calls.length`),callsBeforeSwitch);
+    await click('启用余量查询'); await waitFor(`document.querySelector('dialog')?.open`);
+    await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    await waitFor(`!document.querySelector('dialog')`);
+    assert.equal(await evaluate(`window.calls.length`),callsBeforeSwitch);
+    await click('启用余量查询'); await waitFor(`document.querySelector('dialog')?.open`);
+    await click('切换连接并重新授权'); await waitFor(`window.calls.at(-1)==='codex'`);
+    assert.equal(await evaluate(`window.calls.length`),callsBeforeSwitch+1);
+    await evaluate(`window.finishLogin();window.refreshState()`);
+    await waitFor(`document.querySelectorAll('[role="meter"]').length===2`);
+    assert.equal(await evaluate(`document.querySelector('.cgp-path').innerText`),'订阅余量连接 · 实验性');
+    checks.push('Plus/Pro official connection offers quota login; cancel and Escape preserve it; explicit switch authorizes the quota route and loads both windows');
     await scenario('limits');
     assert.deepEqual(await evaluate(`[...document.querySelectorAll('[role="meter"]')].map(n=>Number(n.getAttribute('aria-valuenow')))`),[0,100]);
     assert.equal(await evaluate(`document.querySelector('[role="alert"]').innerText.includes('上限')`),true); checks.push('zero/full quota and rate limit state');
@@ -121,8 +169,8 @@ try {
     await screenshot(resolve(output,'disconnected-dark.png'));
     await click('使用 ChatGPT 登录'); await waitFor(`document.body.innerText.includes('请在浏览器中完成登录')`);
     assert.equal(await evaluate(`window.calls.at(-1)`),'siwc'); await click('取消登录');
-    await scenario('disconnected'); await click('使用 Business 登录'); await waitFor(`window.calls.at(-1)==='codex'`); await click('取消登录');
-    await scenario('disconnected'); await evaluate(`window.desktop=true`); await click('使用 Business 登录');
+    await scenario('disconnected'); await click('使用订阅登录'); await waitFor(`window.calls.at(-1)==='codex'`); await click('取消登录');
+    await scenario('disconnected'); await evaluate(`window.desktop=true`); await click('使用订阅登录');
     await waitFor(`window.opened.some(u=>u.startsWith('https://auth.openai.com/'))`);
     assert.deepEqual(await evaluate(`window.opened`),['about:blank','https://auth.openai.com/oauth/authorize']);
     await click('取消登录'); checks.push('Desktop opens the official URL automatically when blank-window reservation is denied');
@@ -149,7 +197,7 @@ try {
     await evaluate(`window.setViewFailure(false)`);
     await waitFor(`!document.querySelector('[role="alert"]')`);
     checks.push('connection-state polling clears its own error after recovery');
-    await scenario('reauth'); assert.equal(await evaluate(`[...document.querySelectorAll('button')].some(b=>b.innerText==='使用 Business 登录'&&!b.disabled)`),true);
+    await scenario('reauth'); assert.equal(await evaluate(`[...document.querySelectorAll('button')].some(b=>b.innerText==='使用订阅登录'&&!b.disabled)`),true);
     await scenario('connected'); await click('退出登录'); await waitFor(`document.body.innerText.includes('连接你的 ChatGPT 账号')`);
     assert.equal(await evaluate(`document.querySelectorAll('[role="meter"]').length`),0); checks.push('reauthentication and logout clear connected data');
     await scenario('connected');
@@ -254,7 +302,8 @@ try {
       assert.equal(await evaluate(`!!document.querySelector('.cgp-quota-track')`),false);
     }
     await scenario('weekly-only');
-    assert.equal(await evaluate(`document.querySelector('.cgp-quota-trigger strong').innerText`),'—');
+    assert.equal(await evaluate(`document.querySelector('.cgp-quota-trigger strong').innerText`),'58%');
+    assert.equal(await evaluate(`document.querySelector('.cgp-quota-period').innerText`),'· 每周');
     await openQuota();
     assert.deepEqual(await evaluate(`[...document.querySelectorAll('.cgp-quota-detail dd')].map(n=>n.innerText)`),['剩余 58%']);
     await escape();

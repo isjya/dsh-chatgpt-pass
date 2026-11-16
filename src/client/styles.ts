@@ -2,6 +2,11 @@
 export const styles = `
 .chatgpt-subscription{--cgp-text:var(--dsw-alias-label-primary,#202124);--cgp-muted:var(--dsw-alias-label-secondary,#73757c);--cgp-border:var(--dsw-alias-border-l2,rgba(127,127,127,.22));--cgp-surface:var(--dsw-alias-bg-layer-2,Canvas);--cgp-soft:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.07));--cgp-accent:light-dark(#168368,#61d9b2);--cgp-warning:light-dark(#966000,#efbd66);--cgp-danger:light-dark(#bb3636,#ff9696);container-type:inline-size;box-sizing:border-box;width:100%;max-width:760px;margin:0 auto;padding:8px 0 24px;color:var(--cgp-text);font-family:inherit;font-size:14px;line-height:1.5}
 .chatgpt-subscription *{box-sizing:border-box}
+.chatgpt-subscription .cgp-reconnect-dialog{width:440px;max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);overflow:auto;padding:24px;border:1px solid var(--cgp-border);border-radius:14px;background:var(--cgp-surface);color:var(--cgp-text);font:inherit;box-shadow:0 16px 64px #0004}
+.chatgpt-subscription .cgp-reconnect-dialog::backdrop{background:#0008}
+.chatgpt-subscription .cgp-reconnect-dialog h3{font-size:17px;margin-bottom:14px}
+.chatgpt-subscription .cgp-reconnect-dialog p{margin-top:10px;line-height:1.7}
+.chatgpt-subscription .cgp-dialog-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:22px}
 .chatgpt-subscription h2,.chatgpt-subscription h3,.chatgpt-subscription p{margin:0}
 .chatgpt-subscription h2{font-size:24px;font-weight:650;line-height:1.35;letter-spacing:-.5px}
 .chatgpt-subscription h3{font-size:14px;font-weight:600}

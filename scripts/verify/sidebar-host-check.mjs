@@ -59,10 +59,12 @@ const checks = [];
 for (const [index, port] of [3204, 3205].entries()) {
   const host = await start(port);
   try {
-    const report = await withPage(host.url, async ({ evaluate, send, sleep, screenshot }) => {
+    const report = await withPage(host.url, async ({ evaluate, send, sleep, screenshot, consoleErrors }) => {
       const waitFor = async expression => {
         for (let attempt = 0; attempt < 100; attempt++) { if (await evaluate(expression)) return; await sleep(100); }
-        throw new Error('Main sidebar check timed out: ' + expression);
+        await screenshot(resolve(output, `failure-${index}.png`));
+        const state = await evaluate(`({preference:document.querySelector('.cgp-sidebar-option')?.innerText, disabled:document.querySelector('.cgp-sidebar-option input')?.disabled, alerts:[...document.querySelectorAll('.chatgpt-subscription [role=alert]')].map(n=>n.innerText)})`);
+        throw new Error('Main sidebar check timed out: ' + expression + ' ' + JSON.stringify({ state, consoleErrors }));
       };
       const page = await evaluate(pageProbe); assert.equal(page.stage, 'rendered');
       await waitFor(`!!document.querySelector('.cgp-sidebar-option input:not(:disabled)')`);

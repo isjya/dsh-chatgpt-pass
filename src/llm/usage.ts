@@ -26,6 +26,11 @@ function window(id: '5h' | 'weekly', label: string, value: any, now: number): Us
   const used = percent(value.used_percent);
   if (used === undefined) return undefined;
   const seconds = positive(value.limit_window_seconds);
+  if (seconds !== undefined) {
+    if (seconds === 18000) { id = '5h'; label = '5 小时窗口'; }
+    else if (seconds === 604800) { id = 'weekly'; label = '每周窗口'; }
+    else return undefined;
+  }
   const resetAt = positive(value.reset_at);
   const resetAfter = positive(value.reset_after_seconds);
   return {
@@ -44,7 +49,8 @@ export function mapUsage(body: any, now = Date.now()): UsageView {
   if (!rate || typeof rate !== 'object') throw new ProviderError('PROTOCOL');
   const windows = [window('5h', '5 小时窗口', rate.primary_window, now), window('weekly', '每周窗口', rate.secondary_window, now)]
     .filter((w): w is UsageWindow => w !== undefined);
-  if (!windows.length) throw new ProviderError('PROTOCOL');
+  if (!windows.length || new Set(windows.map(w => w.id)).size !== windows.length) throw new ProviderError('PROTOCOL');
+  windows.sort((a, b) => a.id === b.id ? 0 : a.id === '5h' ? -1 : 1);
   const plan = typeof body.plan_type === 'string' && /^[a-z_]{1,32}$/.test(body.plan_type) ? body.plan_type : undefined;
   return { ...(plan ? { plan } : {}), limitReached: rate.limit_reached === true, windows, observedAt: now };
 }

@@ -6,6 +6,7 @@ import { ChatGPTAdapter } from '../src/llm/adapter.js';
 import { translate, usage } from '../src/llm/stream.js';
 import { buildRequest, toolMap, toolName, PROVIDER } from '../src/llm/request.js';
 import { wireError } from '../src/errors.js';
+import { DEFAULT_RECOVERY } from '../src/llm/recovery.js';
 
 const tools = [{ name: 'local.echo / 中文', description: 'Echo', parameters: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'], additionalProperties: false } }, { name: 'local.clock', description: 'Clock', parameters: { type: 'object', properties: {} } }];
 const opts = (messages: any[] = []): GenerateOptions => ({ provider: PROVIDER, model: 'fixture-model', messages, tools });
@@ -91,9 +92,9 @@ describe('Responses wire contract (synthetic)', () => {
     expect(usage({ input_tokens: 100, input_tokens_details: { cached_tokens: 30 }, output_tokens: 12, output_tokens_details: { reasoning_tokens: 5 }, total_tokens: 112 })).toEqual({ inputTokens: 70, outputTokens: 12, cacheReadTokens: 30, reasoningTokens: 5, totalTokens: 112 });
     expect(() => usage({ input_tokens: 1, output_tokens: 1, input_tokens_details: { cached_tokens: 2 } })).toThrow(); expect(usage(undefined)).toBeUndefined();
   });
-  it('LLM-09 no automatic POST retry or fallback on 503', async () => {
+  it('LLM-09 disabling recovery sends one POST on 503 without fallback', async () => {
     const f = await connected(); let posts = 0;
-    const adapter = new ChatGPTAdapter(f.session, async url => { if (String(url).endsWith('/models')) return Response.json({ models: [{ slug: 'fixture-model', display_name: 'Fixture', visibility: 'list' }] }); posts++; return Response.json({ detail: secret }, { status: 503 }); });
+    const adapter = new ChatGPTAdapter(f.session, async url => { if (String(url).endsWith('/models')) return Response.json({ models: [{ slug: 'fixture-model', display_name: 'Fixture', visibility: 'list' }] }); posts++; return Response.json({ detail: secret }, { status: 503 }); }, Date.now, undefined, { ...DEFAULT_RECOVERY, maxRetries: 0 });
     await expect(collect(adapter.stream(opts()))).rejects.toMatchObject({ code: 'HTTP_503' }); expect(posts).toBe(1); expect(adapter.providerRetryPolicy().maxRetries).toBe(0);
   });
   it('LLM-10/11 lossless replay, tool results, JSON persistence, cropping drops encrypted reasoning', async () => {

@@ -13,7 +13,7 @@ const port = process.argv[3] ?? (target === 'source' ? '3197' : '3202');
 const out = resolve(process.argv[4] ?? `.validation/login-entry-${target}.json`);
 const method = process.argv[5] ?? 'siwc';
 if (!['siwc', 'codex'].includes(method)) throw new Error('Use siwc or codex');
-const buttonLabel = method === 'codex' ? '使用 Business 登录' : '使用 ChatGPT 登录';
+const buttonLabel = method === 'codex' ? '使用订阅登录' : '使用 ChatGPT 登录';
 const { command, args, env, cwd } = hostCommand(target, ['--no-open', '--port', port]);
 const child = spawn(command, args, { cwd, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
 const url = await new Promise((ok, bad) => {

@@ -11,13 +11,16 @@ import { SidebarPreference, type DisplayPreferences } from './preferences.js';
 import { openSubscriptionSettings } from './settings.js';
 import { UsageCard } from './usage.js';
 import { styles } from './styles.js';
+import { ReconnectDialog, QuotaConnectionDialog } from './reconnect.js';
+import { reconnectOptionsCodec } from '../remote.js';
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface TypertRemoteNamespaceMap { chatgptProvider: Api }
 }
-// No business input parameters; public descriptor mounting preserves host ownership and lifecycle.
-export const contribution: TypertRemoteContribution = { package: 'dsh-chatgpt-pass', descriptors: ['view', 'login', 'loginCodex', 'consent', 'cancel', 'models', 'usage', 'logout'].map(method => ({
-  id: `dsh-chatgpt-pass:chatgptProvider/${method}`, service: 'chatgptProvider', namespace: 'chatgptProvider', method, invocation: { kind: 'direct' as const }, parameters: [], result: { mode: 'src-json' as const },
+// Public descriptor mounting preserves host ownership and lifecycle.
+export const contribution: TypertRemoteContribution = { package: 'dsh-chatgpt-pass', descriptors: ['view', 'login', 'loginCodex', 'consent', 'cancel', 'models', 'usage', 'logout', 'reconnect'].map(method => ({
+  id: `dsh-chatgpt-pass:chatgptProvider/${method}`, service: 'chatgptProvider', namespace: 'chatgptProvider', method, invocation: { kind: 'direct' as const },
+  parameters: method === 'reconnect' ? [{ name: 'options', wire: 'options', source: 'json' as const, codec: reconnectOptionsCodec }] : [], result: { mode: 'src-json' as const },
 })) };
 function officialLink(raw: string): string {
   const u = new URL(raw); if (u.origin !== 'https://auth.openai.com' || !['/api/accounts/authorize', '/oauth/authorize'].includes(u.pathname)) throw new Error('授权地址未通过验证。'); return u.href;
@@ -32,6 +35,9 @@ export function Settings({ client }: { client: ClientState }) {
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [models, setModels] = useState<{ id: string; name: string }[]>([]), [link, setLink] = useState(''), [busy, setBusy] = useState(false);
   const [modelsLoading, setModelsLoading] = useState(false), [modelsError, setModelsError] = useState('');
+  const [reconnectCount, setReconnectCount] = useState<number | null>(null);
+  const [quotaConnection, setQuotaConnection] = useState(false);
+  const modelEpoch = useRef(0);
   const popup = useRef<Window | null>(null), waiting = useRef(false);
   // Credentials can be committed before the authorization flow rotates its signal.
   // Wait for that flow to finish before starting account-bound reads.
@@ -48,18 +54,32 @@ export function Settings({ client }: { client: ClientState }) {
   }, [view]);
   useEffect(() => {
     let disposed = false;
+    const epoch = ++modelEpoch.current;
     setModels([]); setModelsError(''); setModelsLoading(Boolean(connection));
     if (connection) {
-      void value(api.models()).then(m => { if (!disposed) setModels(m); }, () => { if (!disposed) setModelsError('模型暂时无法加载，请重试。'); }).finally(() => { if (!disposed) setModelsLoading(false); });
+      void value(api.models()).then(m => { if (!disposed && epoch === modelEpoch.current) setModels(m); }, () => { if (!disposed && epoch === modelEpoch.current) setModelsError('模型暂时无法加载，请重试。'); }).finally(() => { if (!disposed && epoch === modelEpoch.current) setModelsLoading(false); });
     }
     return () => { disposed = true; };
   }, [api, connection]);
+  useEffect(() => { setReconnectCount(null); }, [connection, view?.signingIn]);
+  useEffect(() => { setQuotaConnection(false); }, [connection, view?.signingIn]);
   const refreshModels = async () => {
-    const key = connection; setModelsLoading(true); setModelsError('');
-    try { const next = await value(api.models()); if (currentConnection.current === key) setModels(next); }
-    catch { if (currentConnection.current === key) setModelsError('模型暂时无法加载，请重试。'); }
-    finally { if (currentConnection.current === key) setModelsLoading(false); }
+    const key = connection, epoch = ++modelEpoch.current;
+    const current = () => currentConnection.current === key && epoch === modelEpoch.current;
+    setModelsLoading(true); setModelsError('');
+    try { const next = await value(api.models()); if (current()) setModels(next); }
+    catch { if (current()) setModelsError('模型暂时无法加载，请重试。'); }
+    finally { if (current()) setModelsLoading(false); }
   };
+  const reconnect = (confirmed = false) => run(async () => {
+    const result = await value(api.reconnect({ confirmed }));
+    if (result.status === 'confirmation_required') { setReconnectCount(result.activeRequests); return; }
+    setReconnectCount(null); modelEpoch.current++; setModels([]); setModelsError('');
+    client.invalidate();
+    await client.refreshView();
+    await Promise.all([refreshModels(), client.refreshUsage()]);
+    setNotice('连接已重置。若聊天已停止，请手动继续。');
+  });
   const run = async (f: () => Promise<void>) => {
     setError(''); setNotice(''); setBusy(true);
     try {
@@ -83,6 +103,10 @@ export function Settings({ client }: { client: ClientState }) {
     catch (e) { opened?.close(); waiting.current = false; popup.current = null; throw e; }
   });
   const disabled = busy || !view || view.signingIn;
+  const quotaLogin = () => {
+    if (view?.method !== 'codex' && view?.state !== 'disconnected') setQuotaConnection(true);
+    else void login(false, true);
+  };
   const setSidebarEnabled = async (enabled: boolean) => {
     setSavingPreference(true); setError('');
     try { await client.sidebar.set(enabled); }
@@ -90,18 +114,21 @@ export function Settings({ client }: { client: ClientState }) {
     finally { setSavingPreference(false); }
   };
   const loginOptions = <div className="cgp-grid">
-    <div className="cgp-card cgp-login"><div><div className="cgp-login-heading"><strong>ChatGPT 登录</strong><span className="cgp-tag">官方授权</span></div><p>推荐 Plus / Pro 会员</p></div><button className="cgp-primary" disabled={disabled} onClick={() => void login()}>使用 ChatGPT 登录</button></div>
-    <div className="cgp-card cgp-login"><div><div className="cgp-login-heading"><strong>Business 登录</strong><span className="cgp-tag" title="Codex 兼容连接，非官方路径">兼容 · 实验性</span></div><p>推荐 Business 会员</p></div><button disabled={disabled} onClick={() => void login(false, true)}>使用 Business 登录</button></div>
+    <div className="cgp-card cgp-login"><div><div className="cgp-login-heading"><strong>ChatGPT 登录</strong><span className="cgp-tag">官方授权</span></div><p>使用 ChatGPT 订阅，余量在 ChatGPT 查看</p></div><button className="cgp-primary" disabled={disabled} onClick={() => void login()}>使用 ChatGPT 登录</button></div>
+    <div className="cgp-card cgp-login"><div><div className="cgp-login-heading"><strong>订阅登录（含余量）</strong><span className="cgp-tag" title="Codex 兼容连接，非官方第三方接入路径">兼容 · 实验性</span></div><p>Plus / Pro / Business · 查询 5 小时与每周余量</p></div><button disabled={disabled} onClick={quotaLogin}>使用订阅登录</button></div>
   </div>;
   return <section className="chatgpt-subscription" aria-label="ChatGPT 订阅">
     <style>{styles}</style>
+    {reconnectCount !== null && <ReconnectDialog count={reconnectCount} onCancel={() => setReconnectCount(null)} onConfirm={() => { setReconnectCount(null); void reconnect(true); }} />}
+    {quotaConnection && <QuotaConnectionDialog onCancel={() => setQuotaConnection(false)} onConfirm={() => { setQuotaConnection(false); void login(false, true); }} />}
     <header><h2>ChatGPT 订阅</h2><p className="cgp-subtitle">管理账号连接与订阅额度</p></header>
     <div className="cgp-card cgp-account">
       <div className="cgp-account-main">
         <div className="cgp-avatar" aria-hidden="true"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="8" r="3.5" /><path d="M5 21v-2a7 7 0 0 1 14 0v2" /></svg></div>
-        <div className="cgp-identity"><p className="cgp-email">{view?.account ?? (view ? '连接你的 ChatGPT 账号' : '正在读取账号…')}</p><p className="cgp-path">{view?.state !== 'disconnected' && view ? (view.method === 'codex' ? 'Business 连接 · 实验性' : 'ChatGPT 官方连接') : '选择适合你的订阅连接方式'}</p></div>
+        <div className="cgp-identity"><p className="cgp-email">{view?.account ?? (view ? '连接你的 ChatGPT 账号' : '正在读取账号…')}</p><p className="cgp-path">{view?.state !== 'disconnected' && view ? (view.method === 'codex' ? '订阅余量连接 · 实验性' : 'ChatGPT 官方连接') : '选择适合你的订阅连接方式'}</p></div>
         <div className="cgp-account-actions">
           <span className="cgp-status" data-connected={view?.state === 'connected'} role="status"><span className="cgp-dot" />{view?.signingIn ? '等待授权' : view ? labels[view.state] : '读取中'}</span>
+          {view?.state === 'connected' && <button className="cgp-quiet" disabled={disabled || reconnectCount !== null} onClick={() => void reconnect()}>重新连接</button>}
           {view && view.state !== 'disconnected' && <button className="cgp-quiet" disabled={disabled} onClick={() => void run(async () => { client.invalidate(); const r = await value(api.logout()); setLink(''); setModels([]); setNotice(r.remoteRevoked ? '已退出登录。' : '已退出本地登录；可在 ChatGPT 设置中管理远端连接。'); })}>退出登录</button>}
         </div>
       </div>
@@ -119,7 +146,7 @@ export function Settings({ client }: { client: ClientState }) {
         {usageError && <p className="cgp-feedback" role="alert">{usageError}</p>}
         {usage?.limitReached && <p className="cgp-feedback" role="alert">当前订阅额度已达上限，请等待重置。</p>}
         {usage && <div className="cgp-updated"><span>更新于 {new Date(usage.observedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span><span>Codex 用量 · 仅供参考</span></div>}
-      </> : <div className="cgp-card cgp-empty">此连接暂不提供用量数据，可前往 ChatGPT 查看。</div>}
+      </> : <div className="cgp-card cgp-empty"><p>Plus / Pro 也可查询订阅余量。当前官方连接的用量请在 ChatGPT 查看；启用应用内余量需切换连接并重新授权。</p><button disabled={disabled} onClick={quotaLogin}>启用余量查询</button> <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noreferrer noopener">在 ChatGPT 查看</a></div>}
     </div>}
     {view?.sharing && <details className="cgp-card cgp-models"><summary>可用模型<span className="cgp-count">{modelsLoading ? '加载中' : `${models.length} 个`}</span><Chevron /></summary><div className="cgp-model-body">
       <div className="cgp-model-toolbar"><span>在聊天的模型选择器中切换使用</span><button className="cgp-quiet" disabled={disabled || modelsLoading} onClick={() => void refreshModels()}><Refresh />刷新模型</button></div>

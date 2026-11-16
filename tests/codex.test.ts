@@ -10,7 +10,7 @@ import { MemoryStore } from './helpers.js';
 import { Store } from '../src/auth/store.js';
 import { SessionManager } from '../src/auth/session.js';
 import { OAuth, ISSUER } from '../src/auth/oauth.js';
-import { CodexOAuth, CODEX_BASE, CODEX_CLIENT_ID } from '../src/auth/codex.js';
+import { CodexOAuth, CODEX_BASE, CODEX_USAGE_URL, CODEX_CLIENT_ID } from '../src/auth/codex.js';
 import { ChatGPTAdapter } from '../src/llm/adapter.js';
 import { PROVIDER, toolName } from '../src/llm/request.js';
 import { wireError } from '../src/errors.js';
@@ -26,7 +26,7 @@ async function codexKeys() {
   return { keys, jwk: { ...await exportJWK(keys.publicKey), kid: 'codex-fixture', alg: 'RS256', use: 'sig' } };
 }
 
-describe('Codex (Business) path', () => {
+describe('Codex subscription path (Plus, Pro and Business)', () => {
   it('CODEX-AUTH-01 authorize URL shape, loopback callback, token exchange and ID token verification', async () => {
     const { keys, jwk } = await codexKeys();
     let nonce = '';
@@ -250,7 +250,13 @@ describe('Codex (Business) path', () => {
     expect(() => mapUsage({ rate_limit: { primary_window: { used_percent: 150 } } }, Date.now())).toThrow();
   });
 
-  it('CODEX-USAGE-03 adapter fetches /usage with account headers; SIWC returns no usage', async () => {
+  it('uses actual window durations for Pro accounts with only weekly quota', () => {
+    expect(mapUsage({ plan_type: 'pro', rate_limit: { primary_window: { used_percent: 42, limit_window_seconds: 604800 } } }).windows)
+      .toEqual([{ id: 'weekly', label: '每周窗口', usedPercent: 42, windowSeconds: 604800 }]);
+    expect(() => mapUsage({ rate_limit: { primary_window: { used_percent: 10, limit_window_seconds: 3600 } } })).toThrow();
+  });
+
+  it.each(['plus', 'pro', 'team'])('fetches %s quota from the account usage endpoint with isolated Codex credentials', async plan => {
     const memory = new MemoryStore();
     const session = new SessionManager(new Store(memory), new OAuth(async () => { throw new Error('unused'); }), () => {});
     session.codex = { authorize: async () => ({ tokens: tokens(), identity, nonce: 'n' }), verify: async () => identity, refresh: async () => tokens(), revoke: async () => true } as unknown as CodexOAuth;
@@ -258,17 +264,27 @@ describe('Codex (Business) path', () => {
     const seen: { url: string; headers: Headers }[] = [];
     const adapter = new ChatGPTAdapter(session, async (url, init) => {
       seen.push({ url: String(url), headers: new Headers(init!.headers) });
-      return Response.json({ plan_type: 'team', rate_limit: { limit_reached: false,
+      return Response.json({ plan_type: plan, rate_limit: { limit_reached: false,
         primary_window: { used_percent: 16, limit_window_seconds: 18000, reset_after_seconds: 3600 },
         secondary_window: { used_percent: 42, limit_window_seconds: 604800, reset_after_seconds: 86400 } } });
     });
     const usage = await adapter.usage();
-    expect(seen[0]!.url).toBe(`${CODEX_BASE}/usage`);
+    expect(seen[0]!.url).toBe(CODEX_USAGE_URL);
+    expect(seen[0]!.url).toBe('https://chatgpt.com/backend-api/wham/usage');
     expect(seen[0]!.headers.get('chatgpt-account-id')).toBe(identity.accountId);
+    expect(seen[0]!.headers.get('authorization')).toBe('Bearer codex-access');
+    expect(seen[0]!.headers.get('accept')).toBe('application/json');
+    expect(usage?.plan).toBe(plan);
     expect(usage?.windows.map(w => w.id)).toEqual(['5h', 'weekly']);
+    await adapter.usage(); expect(seen).toHaveLength(1);
+    adapter.dispose(); session.dispose();
+  });
+
+  it('does not send official SIWC credentials to the Codex quota endpoint', async () => {
     const f = await connected();
     const siwc = new ChatGPTAdapter(f.session, async () => { throw new Error('must not fetch usage for SIWC'); });
     expect(await siwc.usage()).toBeUndefined();
+    siwc.dispose(); f.session.dispose();
   });
 
   it('metadata failures remain local and do not turn a connected session into a persistent connection alert', async () => {

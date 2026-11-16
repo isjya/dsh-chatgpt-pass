@@ -10,13 +10,13 @@
 
 `dsh-chatgpt-pass` 让 DeepSeek Harness 使用已授权的 ChatGPT 订阅模型。插件提供账号连接、模型目录、流式文本、本地函数工具，以及可用时的订阅剩余额度。
 
-这是独立维护的第三方插件，并非 OpenAI 或 DeepSeek 官方插件。当前版本支持 Harness **0.2.1-rc.5** 与 **0.2.2-rc.1**，其他版本尚未验证。
+这是独立维护的第三方插件，并非 OpenAI 或 DeepSeek 官方插件。当前版本支持 Harness **0.2.1-rc.5**、**0.2.2-rc.1** 与 **0.2.2-rc.3**。0.2.20 新增 rc.3 兼容，其他版本尚未验证。
 
 ## 安装
 
 在 [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases) 下载 `dsh-chatgpt-pass-<版本>.tgz` 和对应 `.sha256` 文件，然后在 Harness 的插件管理器中添加本地安装包并启用。安装包已经构建，用户无需单独安装 Node.js、下载源码或运行构建脚本。
 
-当前安装包：[v0.2.19](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.19/dsh-chatgpt-pass-0.2.19.tgz)。插件管理器支持链接输入时，也可粘贴该 `.tgz` 下载地址。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
+此前发布的安装包：[v0.2.19](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.19/dsh-chatgpt-pass-0.2.19.tgz)（不支持 Harness rc.3）。rc.3 请按下文构建 v0.2.21，再安装 `artifacts/dsh-chatgpt-pass-0.2.21.tgz`。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
 
 使用 CLI 时，将命令中的文件名和 profile 替换为实际值：
 
@@ -42,16 +42,18 @@ dsh plugin --profile <profile> add ./dsh-chatgpt-pass-<版本>.tgz
 
 | 入口 | 推荐账号 | 连接方式 |
 | --- | --- | --- |
-| ChatGPT 登录 | Plus / Pro | 官方 SIWC 授权流程 |
-| Business 登录 | Business / Team | Codex 兼容路径，实验性 |
+| ChatGPT 登录 | 符合资格的 ChatGPT 订阅账号 | 官方 SIWC 授权，用量在 ChatGPT 查看 |
+| 订阅登录（含余量） | Plus / Pro / Business / Team | Codex 兼容连接，可查询余量，实验性 |
 
 在官方浏览器授权页完成登录后，回到 Harness，在聊天模型选择器中选择实际返回的模型。已连接时，可展开「切换连接方式」重新登录，或展开「可用模型」查看和刷新目录。
 
-Codex 连接可显示 5 小时与每周剩余额度及重置倒计时。官方连接没有此数据时显示空状态，不生成估算用量。当前不提供账号级历史 Token 分析。
+Plus / Pro 也可通过订阅连接查询 5 小时与每周余量。0.2.21 使用上游 Codex 客户端的账号余量接口。已使用官方连接时，可点击「启用余量查询」，确认后重新授权以替换连接。这会同时更换模型与用量的授权方式，切换后请新建会话。官方 SIWC 连接保留 ChatGPT 用量页面入口，不向 Codex 接口发送其凭据。当前不提供账号级历史 Token 分析。
 
 勾选「在侧边栏显示余量」后，主窗口左侧栏底部、账号／设置入口上方只显示 5 小时剩余比例。点击该入口，弹出 5 小时与每周限额、重置倒计时和刷新；点击「订阅设置」会关闭弹窗并进入 Harness 内的「ChatGPT 订阅」设置页。点击外部或按 Escape 关闭。选项默认关闭，保存在 Harness 配置中；入口可见时约每分钟更新，侧边栏收起时隐藏。
 
-**Business 兼容路径不属于 OpenAI 文档支持的第三方接入方式。** 它使用 Codex 第一方 OAuth 客户端，可能受工作区策略、服务条款及接口变动影响。只使用你获准使用的账号与工作区。账号资格、模型和实际限额以授权结果为准。
+账号仅返回每周窗口时（例如部分 Pro 连接），侧边栏会显示每周余量；以接口返回的窗口为准，不补造 5 小时限额。
+
+**订阅兼容路径不属于 OpenAI 文档支持的第三方接入方式。** 它使用 Codex 第一方 OAuth 客户端，可能受工作区策略、服务条款及接口变动影响。只使用你获准使用的账号与工作区。账号资格、模型和实际限额以授权结果为准。
 
 ## 开发
 
@@ -72,6 +74,8 @@ pnpm pack:release
 - [第三方许可](THIRD_PARTY_NOTICES.md)
 
 ## 限制与凭据
+
+尚未输出文字、推理或工具调用时，临时网络或服务错误默认最多自动重试两次，可能额外消耗订阅用量。等待响应头和后续事件默认均为 120 秒，均可配置。订阅设置页的「重新连接」会保留登录与历史，有在途请求时先弹窗确认再中止；参见[运行失败与超时](docs/INSTALL.md#运行失败与超时)。
 
 - 当前声明文本与普通本地函数工具；未承诺完整多模态支持。
 - Plus / Pro 的真实账号调用尚未验证；Business 兼容路径已完成真实文本和工具回合验证。自动化测试不代表真实账号资格。

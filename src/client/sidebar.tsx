@@ -26,10 +26,11 @@ function QuotaCard({ client, onOpenSettings }: { client: ClientState; onOpenSett
   const canRead = view?.state === 'connected' && view.sharing && !view.signingIn && view.method === 'codex';
   const status = stateError ? '连接状态暂不可用' : !view ? '正在读取余量…' : view.signingIn ? '等待登录完成…'
     : view.state === 'reauth_required' ? '请重新登录 ChatGPT' : !view.sharing ? '连接 ChatGPT 后查看余量'
-    : view.method !== 'codex' ? '当前连接不提供余量数据' : usageLoading ? '正在获取余量…' : '暂时无法获取余量';
-  const primary = canRead ? usage?.windows.find(w => w.id === '5h') : undefined;
+    : view.method !== 'codex' ? '请在订阅设置启用余量查询' : usageLoading ? '正在获取余量…' : '暂时无法获取余量';
+  const primary = canRead ? usage?.windows.find(w => w.id === '5h') ?? usage?.windows.find(w => w.id === 'weekly') : undefined;
+  const period = primary?.id === 'weekly' ? '每周' : '5 小时';
   const remaining = primary ? Math.round((100 - primary.usedPercent) * 10) / 10 : undefined;
-  const primaryStatus = canRead && usage?.windows.length && !primary ? '5 小时余量暂未提供' : status;
+  const primaryStatus = status;
   const updatedAt = usage ? new Date(usage.observedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
   useEffect(() => {
     const element = panel.current;
@@ -69,8 +70,8 @@ function QuotaCard({ client, onOpenSettings }: { client: ClientState; onOpenSett
   return <section className="cgp-sidebar" aria-label="ChatGPT 订阅余量">
     <style>{sidebarStyles}</style>
     <button ref={trigger} className="cgp-quota-trigger" type="button" {...{ popovertarget: panelId }} aria-haspopup="dialog" aria-controls={panelId} aria-expanded={open}
-      aria-label={`ChatGPT 5 小时余量，${remaining === undefined ? primaryStatus : `剩余 ${remaining}%`}，查看用量详情`} title={usageError || stateError || '查看订阅用量'} data-stale={!!(usageError || stateError)}>
-      <span className="cgp-quota-line"><span>ChatGPT <span className="cgp-quota-period">· 5 小时</span></span><strong>{remaining === undefined ? '—' : `${remaining}%`}</strong></span>
+      aria-label={`ChatGPT ${period}余量，${remaining === undefined ? primaryStatus : `剩余 ${remaining}%`}，查看用量详情`} title={usageError || stateError || '查看订阅用量'} data-stale={!!(usageError || stateError)}>
+      <span className="cgp-quota-line"><span>ChatGPT <span className="cgp-quota-period">· {period}</span></span><strong>{remaining === undefined ? '—' : `${remaining}%`}</strong></span>
       {remaining === undefined ? <span className="cgp-quota-status">{primaryStatus}</span> : <span className="cgp-quota-track" data-tone={remaining === 0 ? 'empty' : remaining <= 20 ? 'warning' : 'normal'} aria-hidden="true"><span style={{ width: `${remaining}%` }} /></span>}
     </button>
     <div ref={panel} id={panelId} className="cgp-quota-popover" {...{ popover: 'auto' }} role="dialog" aria-labelledby={headingId}>

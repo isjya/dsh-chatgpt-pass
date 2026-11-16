@@ -67,7 +67,9 @@ export function buildRequest(options: GenerateOptions, identity: string, allowRe
       const replay = m.source.replayState as ReplayEnvelope | undefined;
       if (replay && m.source.provider === PROVIDER) {
         const meta = replay.response as any;
-        if (!meta || meta.provider !== PROVIDER || meta.version !== 1 || meta.identity !== identity || meta.model !== options.model || !Array.isArray(replay.blocks) || replay.blocks.length !== m.content.length) throw new ProviderError('REPLAY_INVALID');
+        if (!meta || meta.provider !== PROVIDER || meta.version !== 1 || typeof meta.identity !== 'string' || !meta.identity || typeof meta.model !== 'string' || !meta.model || !Array.isArray(replay.blocks) || replay.blocks.length !== m.content.length) throw new ProviderError('REPLAY_INVALID');
+        if (meta.identity !== identity) throw new ProviderError('REPLAY_IDENTITY_MISMATCH');
+        const sameModel = meta.model === options.model;
         for (let i = 0; i < m.content.length; i++) {
           const block = m.content[i]!, rb = replay.blocks[i] as ReplayBlock;
           if (!rb || !Array.isArray(rb.items)) throw new ProviderError('REPLAY_INVALID');
@@ -75,7 +77,12 @@ export function buildRequest(options: GenerateOptions, identity: string, allowRe
           if (rb.hash !== digest(block)) {
             if (block.type === 'tool-call') throw new ProviderError('REPLAY_INVALID');
             input.push(...explicit(block));
-          } else input.push(...checkedReplay(rb.items, block));
+          } else {
+            const items = checkedReplay(rb.items, block);
+            // Validate before projecting: only normalized messages and tool calls
+            // cross models. Native reasoning remains bound to its original model.
+            input.push(...(sameModel ? items : items.filter(item => item.type !== 'reasoning')));
+          }
         }
       } else {
         for (const block of m.content) input.push(...explicit(block));
