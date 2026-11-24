@@ -13,7 +13,7 @@ pnpm pack:release
 
 `pnpm check` 依次执行类型检查、构建与自动化测试。测试使用合成授权服务、真实宿主公开包和临时目录；不需要 ChatGPT 登录，也不执行真实推理。`pnpm test` 单独运行时要求已有最新 `lib/`。
 
-当前开发依赖固定为 Harness `0.2.2-rc.3`，用于验证该版本的服务端、Gateway、客户端和 Agent 接口。`engines.dsh` 与 DSH peer 范围保留此前支持的 `0.2.1-rc.5`、`0.2.2-rc.1` 并加入 `0.2.2-rc.3`；不要用未验证的通配范围绕过宿主兼容检查。新增支持版本后，还需用对应宿主运行隔离的安装包生命周期检查。
+当前开发依赖固定为 Harness `0.2.2-rc.5`，用于验证该版本的服务端、Gateway、客户端和 Agent 接口。`engines.dsh` 与 DSH peer 范围逐一列出支持的宿主版本。新增支持版本时，用对应宿主运行隔离的安装包生命周期检查。
 
 客户端导出或 Remote 参数变更需要通过真实 Gateway 挂载发布后的客户端 bundle；页面组件测试中的模拟 Remote 不能代替启动兼容性检查。`tests/client.test.ts` 覆盖此路径及重连参数的传输，`tests/host.test.ts` 验证服务端拒绝无效参数。
 
@@ -41,6 +41,7 @@ pnpm pack:release
 - `node scripts/verify/ui-session.mjs desktop <port> <输出前缀>`：启动隔离 Desktop 宿主；先设置 `DSH_CHATGPT_DESKTOP_ROOT` 为 Desktop 安装目录。
 - `node scripts/verify/lifecycle-check.mjs source|desktop`：在全新隔离目录验证安装、升级与卸载。
 - `node scripts/verify/sidebar-host-check.mjs source|desktop`：在全新隔离宿主中使用合成元数据，验证主侧边栏的紧凑 5 小时入口、点击详情弹窗、关闭设置后仍显示，以及更换端口重启后保留开关；不登录真实账号。
+- `node scripts/verify/reasoning-host-check.mjs source|desktop`：在隔离宿主内安装交付包，使用合成官方连接及本地响应，验证真实模型菜单的思考档位、选择保存和发往 Responses 的参数；不执行外部授权或推理。
 
 `DSH_CHATGPT_HOME` 指定隔离的 DSH_HOME，默认 `.validation/<target>-home`；`DSH_CHATGPT_PROFILE` 指定测试 profile。真实账号只读状态与用量探针使用 `DSH_PROBE_HOME`。真实文本／工具探针会消耗订阅用量，须在明确决定执行后单独运行，不进入 CI。
 

@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { LlmAdapter, ReasoningEffortId, attributionHeaders, type GenerateOptions, type LlmResolvedModelInfo, type PreparedAdapterCall, type StreamChunk } from '@deepseek-ai/dsh-llm';
+import { LlmAdapter, attributionHeaders, type GenerateOptions, type LlmResolvedModelInfo, type PreparedAdapterCall, type StreamChunk } from '@deepseek-ai/dsh-llm';
 import { ProviderError, safeError, wireError, object } from '../errors.js';
 import { type Binding, type Profile, SessionManager } from '../auth/session.js';
 import { RESOURCE, json, type Fetch } from '../auth/oauth.js';
@@ -7,6 +7,7 @@ import { CODEX_BASE, CODEX_USAGE_URL, CODEX_CLIENT_VERSION, CODEX_ORIGINATOR } f
 import { buildRequest, PROVIDER, toolMap } from './request.js';
 import { translate } from './stream.js';
 import { mapUsage, type UsageView } from './usage.js';
+import { modelReasoning } from './models.js';
 import { abortable, DEFAULT_RECOVERY, recoveryDelay, retryAfter, waitForRecovery, type RecoveryConfig, type ReconnectResult } from './recovery.js';
 
 /** Response-header and inter-event deadlines for each network attempt. */
@@ -95,23 +96,14 @@ export class ChatGPTAdapter extends LlmAdapter {
       const list = object(body).models;
       if (!Array.isArray(list)) throw new ProviderError('PROTOCOL');
       const seen = new Set<string>();
-      const label = (effort: string) => effort === 'xhigh' ? 'Extra high' : effort === 'max' ? 'Maximum' : effort.charAt(0).toUpperCase() + effort.slice(1);
       const models = list.filter((m: any) => codex ? (m.visibility ?? 'list') === 'list' : m.visibility === 'list').map((m: any): LlmResolvedModelInfo => {
         const id = m.slug, name = codex ? (m.display_name ?? m.slug) : m.display_name;
         if (typeof id !== 'string' || !id || typeof name !== 'string' || seen.has(id)) throw new ProviderError('PROTOCOL');
         seen.add(id);
-        if (!codex) return { provider: PROVIDER, id, name, inputModalities: ['text'] };
-        const efforts = Array.isArray(m.supported_reasoning_levels)
-          ? m.supported_reasoning_levels.filter((l: any) => l && typeof l.effort === 'string' && l.effort).map((l: any) => ({
-            id: ReasoningEffortId(l.effort), name: label(l.effort),
-            ...(typeof l.description === 'string' && l.description ? { description: l.description } : {}),
-          }))
-          : [];
-        const defaultEffort = typeof m.default_reasoning_level === 'string' && efforts.some((e: any) => String(e.id) === m.default_reasoning_level)
-          ? ReasoningEffortId(m.default_reasoning_level) : undefined;
+        const reasoning = modelReasoning(m, !codex);
         return { provider: PROVIDER, id, name, inputModalities: ['text'],
           ...(Number.isSafeInteger(m.context_window) && m.context_window > 0 ? { context: { contextWindow: m.context_window } } : {}),
-          ...(efforts.length ? { reasoning: { efforts, ...(defaultEffort ? { defaultEffort } : {}) } } : {}) };
+          ...(reasoning ? { reasoning } : {}) };
       });
       await this.session.access(binding); signal.throwIfAborted(); this.cache = { key: `${profile.method}:${profile.accountId ?? ''}:${binding.identity}:${binding.generation}`, models, expires: this.now() + 300000 }; return models;
     } catch (e) { network.throwIfAborted(); throw safeError(e); }
@@ -161,12 +153,12 @@ export class ChatGPTAdapter extends LlmAdapter {
     const binding = await this.session.binding(), info = await this.resolveModel(provider, model, signal);
     await this.session.access(binding);
     network.throwIfAborted();
-    return { model: info, stream: options => this.boundStream(options, binding, network) };
+    return { model: info, stream: options => this.boundStream(options, binding, network, info) };
   }
   override async *stream(options: GenerateOptions): AsyncGenerator<StreamChunk> {
     const prepared = await this.prepareCall(options.provider, options.model, options.signal); yield* prepared.stream(options);
   }
-  private async *boundStream(options: GenerateOptions, binding: Binding, network: AbortSignal): AsyncGenerator<StreamChunk> {
+  private async *boundStream(options: GenerateOptions, binding: Binding, network: AbortSignal, model: LlmResolvedModelInfo): AsyncGenerator<StreamChunk> {
     const timeouts = { ...(typeof this.timeouts === 'function' ? this.timeouts() : this.timeouts) };
     const recovery = { ...(typeof this.recovery === 'function' ? this.recovery() : this.recovery) };
     const signal = AbortSignal.any([network, this.session.signal, ...(options.signal ? [options.signal] : [])]);
@@ -175,7 +167,8 @@ export class ChatGPTAdapter extends LlmAdapter {
     try {
       await abortable(this.session.access(binding), signal);
       const profile = await abortable(this.session.profile(), signal);
-      const body = buildRequest(options, binding.identity, profile.method === 'codex');
+      if (options.reasoningEffort !== undefined && !model.reasoning?.efforts.some(effort => effort.id === options.reasoningEffort)) throw new ProviderError('subscription_sharing_unsupported_capability');
+      const body = buildRequest(options, binding.identity, !!model.reasoning);
       if (profile.method === 'codex') body.include = ['reasoning.encrypted_content'];
       const names = toolMap(options.tools);
       for (let retry = 0; ; retry++) {

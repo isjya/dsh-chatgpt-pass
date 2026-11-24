@@ -10,13 +10,13 @@
 
 `dsh-chatgpt-pass` 让 DeepSeek Harness 使用已授权的 ChatGPT 订阅模型。插件提供账号连接、模型目录、流式文本、本地函数工具，以及可用时的订阅剩余额度。
 
-这是独立维护的第三方插件，并非 OpenAI 或 DeepSeek 官方插件。当前版本支持 Harness **0.2.1-rc.5**、**0.2.2-rc.1** 与 **0.2.2-rc.3**。0.2.20 新增 rc.3 兼容，其他版本尚未验证。
+本插件由第三方独立维护，支持 Harness **0.2.1-rc.5**、**0.2.2-rc.1**、**0.2.2-rc.3** 和 **0.2.2-rc.5**。使用 Harness 0.2.2-rc.5 时，请安装 **v0.2.23** 或后续明确支持该宿主的版本。
 
 ## 安装
 
 在 [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases) 下载 `dsh-chatgpt-pass-<版本>.tgz` 和对应 `.sha256` 文件，然后在 Harness 的插件管理器中添加本地安装包并启用。安装包已经构建，用户无需单独安装 Node.js、下载源码或运行构建脚本。
 
-此前发布的安装包：[v0.2.19](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.19/dsh-chatgpt-pass-0.2.19.tgz)（不支持 Harness rc.3）。rc.3 请按下文构建 v0.2.21，再安装 `artifacts/dsh-chatgpt-pass-0.2.21.tgz`。本项目目前通过 GitHub Releases 分发，尚未发布到 npm。
+使用 Harness 0.2.2-rc.5 时，可以直接下载 [v0.2.23 安装包](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.23/dsh-chatgpt-pass-0.2.23.tgz)。
 
 使用 CLI 时，将命令中的文件名和 profile 替换为实际值：
 
@@ -46,6 +46,8 @@ dsh plugin --profile <profile> add ./dsh-chatgpt-pass-<版本>.tgz
 | 订阅登录（含余量） | Plus / Pro / Business / Team | Codex 兼容连接，可查询余量，实验性 |
 
 在官方浏览器授权页完成登录后，回到 Harness，在聊天模型选择器中选择实际返回的模型。已连接时，可展开「切换连接方式」重新登录，或展开「可用模型」查看和刷新目录。
+
+0.2.22 起，官方登录也可调整思考强度：选择模型后再次打开模型菜单，进入「推理等级」选择档位。优先使用模型目录返回的档位；官方目录缺失时仅对已核对文档的明确型号补充。未知型号不猜测，不支持关闭思考的模型不提供关闭选项。
 
 Plus / Pro 也可通过订阅连接查询 5 小时与每周余量。0.2.21 使用上游 Codex 客户端的账号余量接口。已使用官方连接时，可点击「启用余量查询」，确认后重新授权以替换连接。这会同时更换模型与用量的授权方式，切换后请新建会话。官方 SIWC 连接保留 ChatGPT 用量页面入口，不向 Codex 接口发送其凭据。当前不提供账号级历史 Token 分析。
 

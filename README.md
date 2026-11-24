@@ -10,13 +10,13 @@
 
 Use authorized ChatGPT subscription models in DeepSeek Harness with `dsh-chatgpt-pass`. This plugin provides account connections, a model catalog, streaming text, local function tools, and remaining subscription quota when available.
 
-This is an independently maintained third-party plugin, not an official OpenAI or DeepSeek plugin. Supported Harness versions are **0.2.1-rc.5**, **0.2.2-rc.1**, and **0.2.2-rc.3**. Version 0.2.20 adds rc.3 compatibility; other versions have not been verified.
+This independently maintained plugin supports Harness **0.2.1-rc.5**, **0.2.2-rc.1**, **0.2.2-rc.3**, and **0.2.2-rc.5**. Use **v0.2.23** or a later release that explicitly supports Harness 0.2.2-rc.5.
 
 ## Installation
 
 Download `dsh-chatgpt-pass-<version>.tgz` and its `.sha256` file from [Releases](https://github.com/isjya/dsh-chatgpt-pass/releases). Add the local package in the Harness plugin manager and enable it. Release packages are prebuilt; users do not need to install Node.js separately, clone the source, or run build scripts.
 
-Previously published package: [v0.2.19](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.19/dsh-chatgpt-pass-0.2.19.tgz) (does not support Harness rc.3). For rc.3, build v0.2.21 below and install `artifacts/dsh-chatgpt-pass-0.2.21.tgz`. This project is distributed through GitHub Releases and is not currently published on npm.
+For Harness 0.2.2-rc.5, download the [v0.2.23 installation package](https://github.com/isjya/dsh-chatgpt-pass/releases/download/v0.2.23/dsh-chatgpt-pass-0.2.23.tgz).
 
 For CLI installation, replace the profile and filename with your actual values:
 
@@ -48,6 +48,8 @@ Open **Settings → ChatGPT 订阅 (ChatGPT Subscription)** and choose a connect
 | 订阅登录（含余量） (Subscription login with quota) | Plus / Pro / Business / Team | Experimental Codex connection with quota queries |
 
 Complete authorization on the official browser page, return to Harness, and choose an available model in the chat model picker. Once connected, expand **切换连接方式 (Switch connection method)** to sign in again, or **可用模型 (Available models)** to view and refresh the catalog.
+
+From v0.2.22, both connection methods expose reasoning effort in the chat model menu. Choose a model, reopen its menu, and select **推理等级 (Reasoning effort)**. The plugin uses catalog capabilities first and documented exact-model settings for known GPT-6 / 6.1 and GPT-5.6 ids when the official catalog omits them. Unsupported settings are not offered; choosing the provider default preserves its behavior. See the installation guide for details.
 
 Plus / Pro accounts can also use the subscription connection to query five-hour and weekly quota windows. Version 0.2.21 uses the account usage endpoint used by the upstream Codex client. An existing official connection offers **启用余量查询 (Enable quota queries)**: review the confirmation and sign in again to replace the connection. This changes both inference and quota authorization; start a new conversation after switching. The official SIWC connection keeps a link to ChatGPT usage settings and never sends its credentials to the Codex endpoint. Account-wide historical token analytics are not currently available.
 
